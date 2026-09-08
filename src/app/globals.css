@@ -1,26 +1,169 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Design tokens — Premium Law Firm Portal
+   --------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  color-scheme: light;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Fonts */
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, monospace;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Case status hues */
+  --color-status-filed: #0284c7;
+  --color-status-trial: #d97706;
+  --color-status-judgment: #6366f1;
+  --color-status-appeal: #e11d48;
+  --color-status-closed: #059669;
+
+  /* Porcelain canvas & Crisp surfaces */
+  --surface-canvas: #f8fafc;
+  --surface-raised: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.95);
+  --surface-sunken: #f1f5f9;
+  --surface-border: #e2e8f0;
+  --surface-border-hover: #0ea5e9;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  /* Brand: Sky Blue */
+  --brand-primary: #0284c7;
+  --brand-primary-hover: #0369a1;
+  --brand-light: rgba(2, 132, 199, 0.12);
+
+  /* Drop shadows */
+  --glow-brand: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  --glow-hover: 0 10px 30px -4px rgba(2, 132, 199, 0.12);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--surface-canvas);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14, 165, 233, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(15, 23, 42, 0.03) 0%, transparent 60%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Global typography — Modern, clean, crisp styling */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    color: #0f172a;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  :focus-visible {
+    outline: 2px solid #0284c7;
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+}
+
+@layer components {
+  /* ── Crisp Light card ───────────────────────────────────────── */
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.25rem;
+    box-shadow: 0 2px 5px 0 rgba(15, 23, 42, 0.04), 0 1px 3px -1px rgba(15, 23, 42, 0.04);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Interactive cards lift gently + glow border */
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(2, 132, 199, 0.4);
+    box-shadow: 0 12px 28px -5px rgba(15, 23, 42, 0.08), 0 8px 12px -6px rgba(2, 132, 199, 0.12);
+  }
+
+  /* ── Surface card styling (Office Portal aesthetic) ───────── */
+  .surface-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.25rem;
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 16px 0 rgba(15, 23, 42, 0.03);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .surface-card:hover {
+    box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06), 0 8px 24px -4px rgba(2, 132, 199, 0.1);
+  }
+
+  /* ── Form labels ──────────────────────────────────────────────── */
+  .field-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #334155;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── Form inputs ──────────────────────────────────────────────── */
+  .field-input {
+    width: 100%;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.875rem 1.125rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #0f172a;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  }
+
+  .field-input:hover {
+    border-color: #0ea5e9;
+  }
+
+  .field-input:focus {
+    background: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3.5px rgba(2, 132, 199, 0.2);
+    outline: none;
+  }
+
+  .field-input::placeholder {
+    color: #94a3b8;
+    font-style: italic;
+  }
+
+  .field-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Calendar modal animations ─────────────────────────────── */
+@keyframes calFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes calScaleUp {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+/* ── Print styles for Court Diary ──────────────────────────── */
+@media print {
+  body { background: white !important; }
+  nav, aside, header button, [data-print-hide] { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
 }

@@ -1,0 +1,409 @@
+// Legal Case Management Portal — data model
+// Internal firm-staff tool. No client-facing entities by design.
+//
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7 no longer accepts `url` / `directUrl` here. Migration URLs live in
+// prisma.config.ts (DB_URL_NON_POOLING); the runtime client connects through a
+// driver adapter over the pooled URL (DB_PRISMA_URL). See src/lib/prisma.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Firm-wide role. Drives route protection and row-level access.
+enum Role {
+  ADMIN_PARTNER
+  SENIOR_ADVOCATE
+  ASSOCIATE
+  PARALEGAL
+}
+
+enum CaseType {
+  CIVIL
+  CRIMINAL
+  CORPORATE
+  FAMILY
+}
+
+enum CaseStatus {
+  FILED
+  UNDER_TRIAL
+  JUDGMENT
+  APPEAL
+  CLOSED
+}
+
+/// A role on one specific case, independent of the firm-wide Role.
+enum CaseRole {
+  LEAD_COUNSEL
+  CO_COUNSEL
+  SUPPORTING_ADVOCATE
+  PARALEGAL
+}
+
+enum DocumentCategory {
+  PETITION
+  REPLY
+  EVIDENCE
+  ORDER
+  JUDGMENT
+  CORRESPONDENCE
+  OTHER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+/// Distinguishes ordinary work items from hard legal deadlines, which get
+/// escalated alerting.
+enum TaskKind {
+  GENERAL
+  FILING_DEADLINE
+  LIMITATION_DEADLINE
+}
+
+/// STRATEGY notes are hidden from PARALEGAL users at the data-access layer.
+enum NoteVisibility {
+  CASE_TEAM
+  STRATEGY
+}
+
+enum AuditAction {
+  VIEW
+  DOWNLOAD
+  UPLOAD
+  DELETE
+}
+
+/// Lead times for date-based reminders.
+///
+/// Shared by hearings and task deadlines; each consumer uses the subset that
+/// makes sense for it. Hearings use 7/3/1. Statutory and filing deadlines add
+/// the longer lead times, because a missed limitation period cannot be cured
+/// by noticing it the day before. OVERDUE is the past-due escalation.
+enum ReminderOffset {
+  DAY_30
+  DAY_14
+  DAY_7
+  DAY_3
+  DAY_1
+  OVERDUE
+}
+
+/// What produced a notification. Kept general so task deadlines and notices
+/// reuse the same delivery mechanism rather than growing parallel ones.
+enum NotificationKind {
+  HEARING_REMINDER
+  TASK_DUE
+  NOTICE_POSTED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(ASSOCIATE)
+  /// Deactivated users keep their audit trail but cannot authenticate.
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  /// Self-relation forming the reporting tree. A SENIOR_ADVOCATE may read the
+  /// cases assigned to anyone whose supervisorId points at them.
+  supervisorId String?
+  supervisor   User?   @relation("TeamHierarchy", fields: [supervisorId], references: [id], onDelete: SetNull)
+  reports      User[]  @relation("TeamHierarchy")
+
+  assignments       CaseAssignment[]
+  uploadedDocuments Document[]       @relation("DocumentUploader")
+  assignedTasks     Task[]           @relation("TaskAssignee")
+  createdTasks      Task[]           @relation("TaskCreator")
+  authoredNotes     CaseNote[]
+  postedNotices     Notice[]
+  noticeReads       NoticeRead[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+
+  @@index([role])
+  @@index([supervisorId])
+}
+
+// ---------------------------------------------------------------------------
+// Cases
+// ---------------------------------------------------------------------------
+
+model Case {
+  id              String     @id @default(cuid())
+  caseNumber      String     @unique
+  title           String
+  clientName      String
+  caseType        CaseType
+  court           String
+  jurisdiction    String
+  judge           String?
+  opposingParty   String?
+  opposingCounsel String?
+  status          CaseStatus @default(FILED)
+  /// Manual ordering within a Kanban column.
+  boardPosition   Int        @default(0)
+  filedOn         DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  assignments CaseAssignment[]
+  documents   Document[]
+  hearings    Hearing[]
+  tasks       Task[]
+  notes       CaseNote[]
+
+  @@index([status])
+  @@index([caseType])
+  @@index([court])
+  @@index([status, boardPosition])
+}
+
+/// Join table for the many-to-many between cases and firm staff. Presence of a
+/// row here is what grants a non-admin user access to a case.
+model CaseAssignment {
+  id         String   @id @default(cuid())
+  caseId     String
+  userId     String
+  roleOnCase CaseRole @default(SUPPORTING_ADVOCATE)
+  assignedAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, userId])
+  @@index([userId])
+  @@index([caseId])
+}
+
+/// Case strategy / working notes. `body` is stored AES-256-GCM encrypted.
+model CaseNote {
+  id         String         @id @default(cuid())
+  caseId     String
+  authorId   String
+  /// Ciphertext. Never query or filter on this column directly.
+  body       String
+  visibility NoteVisibility @default(CASE_TEAM)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  case   Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+  @@index([authorId])
+}
+
+// ---------------------------------------------------------------------------
+// Documents
+// ---------------------------------------------------------------------------
+
+model Document {
+  id           String           @id @default(cuid())
+  caseId       String
+  /// Human-facing name, kept stable across versions. Searchable.
+  title        String
+  /// Original filename as uploaded. Searchable.
+  fileName     String
+  /// Vercel Blob URL.
+  fileUrl      String
+  fileType     String
+  fileSize     Int              @default(0)
+  category     DocumentCategory @default(OTHER)
+  uploadedById String
+  version      Int              @default(1)
+
+  /// Points at the first version in the chain. Null on the root document
+  /// itself, so a full history is `id = root OR rootDocumentId = root`.
+  rootDocumentId String?
+  /// Exactly one version per chain carries true.
+  isLatest       Boolean  @default(true)
+  uploadedAt     DateTime @default(now())
+
+  case       Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy User       @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  root       Document?  @relation("DocumentVersions", fields: [rootDocumentId], references: [id], onDelete: Cascade)
+  versions   Document[] @relation("DocumentVersions")
+  auditLogs  AuditLog[]
+
+  @@index([caseId, isLatest])
+  @@index([caseId, category])
+  @@index([rootDocumentId])
+  @@index([uploadedById])
+  @@index([title])
+  @@index([fileName])
+}
+
+/// Append-only record of who touched which document. Never updated or deleted.
+model AuditLog {
+  id         String      @id @default(cuid())
+  userId     String
+  documentId String?
+  action     AuditAction
+  /// Denormalised so the trail survives document deletion.
+  documentTitle String?
+  ipAddress     String?
+  timestamp     DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, timestamp])
+  @@index([userId, timestamp])
+  @@index([timestamp])
+}
+
+// ---------------------------------------------------------------------------
+// Court diary
+// ---------------------------------------------------------------------------
+
+model Hearing {
+  id        String    @id @default(cuid())
+  caseId    String
+  date      DateTime
+  court     String
+  purpose   String
+  /// Ciphertext (AES-256-GCM), same treatment as CaseNote.body.
+  notes     String?
+  nextDate  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  case      Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  reminders HearingReminder[]
+
+  @@index([date])
+  @@index([caseId, date])
+}
+
+/// One row per (hearing, offset) once that reminder has been dispatched, so
+/// the reminder sweep is idempotent.
+model HearingReminder {
+  id        String         @id @default(cuid())
+  hearingId String
+  offset    ReminderOffset
+  sentAt    DateTime       @default(now())
+
+  hearing Hearing @relation(fields: [hearingId], references: [id], onDelete: Cascade)
+
+  @@unique([hearingId, offset])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/// In-app delivery for reminders and alerts. One row per recipient, so
+/// read state is per person rather than per event.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  kind      NotificationKind
+  title     String
+  body      String
+  /// Where clicking the notification should take the recipient.
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+model Task {
+  id           String     @id @default(cuid())
+  caseId       String?
+  assignedToId String
+  createdById  String?
+  description  String
+  dueDate      DateTime
+  status       TaskStatus @default(TODO)
+  kind         TaskKind   @default(GENERAL)
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  case       Case?       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  assignedTo User        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: Cascade)
+  createdBy  User?       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  alerts     TaskAlert[]
+
+  @@index([assignedToId, status])
+  @@index([dueDate, status])
+  @@index([caseId])
+  @@index([kind, dueDate])
+}
+
+/// One row per (task, offset) once that deadline alert has been dispatched,
+/// so the sweep is idempotent. Mirrors HearingReminder.
+model TaskAlert {
+  id     String         @id @default(cuid())
+  taskId String
+  offset ReminderOffset
+  sentAt DateTime       @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, offset])
+}
+
+// ---------------------------------------------------------------------------
+// Notice board
+// ---------------------------------------------------------------------------
+
+model Notice {
+  id         String   @id @default(cuid())
+  title      String
+  body       String
+  postedById String
+  /// Pinned notices sort to the top of the board.
+  isPinned   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  postedBy User         @relation(fields: [postedById], references: [id], onDelete: Cascade)
+  reads    NoticeRead[]
+
+  @@index([createdAt])
+  @@index([isPinned, createdAt])
+}
+
+model NoticeRead {
+  id       String   @id @default(cuid())
+  noticeId String
+  userId   String
+  readAt   DateTime @default(now())
+
+  notice Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noticeId, userId])
+  @@index([userId])
+}

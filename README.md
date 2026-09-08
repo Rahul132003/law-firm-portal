@@ -1,36 +1,240 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Legal Case Management Portal
 
-## Getting Started
+Internal case management for firm staff. There is deliberately **no
+client-facing portal** — every account belongs to someone at the firm.
 
-First, run the development server:
+Branding comes from `NEXT_PUBLIC_FIRM_NAME`; change it in `.env` rather than
+editing components.
+
+## Stack
+
+| Concern     | Choice                                                       |
+| ----------- | ------------------------------------------------------------ |
+| Framework   | Next.js 16.3 (App Router, Turbopack) + React 19.2             |
+| Language    | TypeScript 5, strict                                          |
+| Database    | PostgreSQL via Prisma 7 (`prisma-client` generator)           |
+| Auth        | NextAuth v5 (Auth.js), credentials provider, JWT sessions     |
+| Files       | Vercel Blob                                                   |
+| Styling     | Tailwind CSS v4 (light theme only — see `globals.css`)        |
+| Charts      | Recharts                                                      |
+| PDF export  | jsPDF + jspdf-autotable                                       |
+
+### Notes on this Next.js / Prisma version
+
+These differ from older tutorials and from most training data:
+
+- **`middleware.ts` is now `proxy.ts`** (`src/proxy.ts`), and the exported
+  function must be named `proxy`. It runs on the Node.js runtime; `edge` is
+  not supported there.
+- **`cookies()`, `headers()`, `params` and `searchParams` are async.**
+  Synchronous access was removed in Next 16.
+- **Prisma 7 forbids `url` / `directUrl` in `schema.prisma`.** Connection
+  strings live in `prisma.config.ts` (for the CLI) and are handed to
+  `PrismaClient` through a **driver adapter** at runtime.
+- `experimental.authInterrupts` is enabled so the data access layer can call
+  `forbidden()` and render a real 403.
+
+## Setup
+
+### 1. Install
+
+```bash
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Fill in every value. `.env.example` documents what each one is and how to
+generate the secrets.
+
+| Variable                | Used by                                          |
+| ----------------------- | ------------------------------------------------ |
+| `DB_PRISMA_URL`         | The running app — **pooled** connection           |
+| `DB_URL_NON_POOLING`    | `prisma migrate` — **direct** connection          |
+| `AUTH_SECRET`           | Signs the session JWT                             |
+| `FIELD_ENCRYPTION_KEY`  | AES-256-GCM for notes at rest                     |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage. **Unset in dev = files go to `.uploads/`** |
+| `CRON_SECRET`           | Guards the hearing-reminder endpoint              |
+| `NEXT_PUBLIC_FIRM_NAME` | Portal branding                                   |
+
+### 3. Database
+
+For local development you can run a throwaway Postgres with:
+
+```bash
+npx prisma dev
+```
+
+It prints a `postgres://…` URL — use it for both `DB_PRISMA_URL` and
+`DB_URL_NON_POOLING` locally. Then:
+
+```bash
+npm run db:migrate     # create/apply migrations
+npm run db:seed        # placeholder staff accounts (dev only)
+```
+
+### 4. Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Seeded accounts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`npm run db:seed` creates four placeholder staff accounts on the reserved
+`example.com` domain and **generates a random password for each at run time**,
+printing them once. No credential is hardcoded anywhere in the repository.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Re-running the seed **does not** rotate existing passwords — it only creates
+accounts that are missing, and reports the rest as unchanged. (Rotating on
+every run silently invalidates a password you are already using.)
 
-## Learn More
+To set a password deliberately — this is also how you recover an account until
+the admin console lands in build step 6:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run user:password -- partner@example.com "a password you choose"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **These accounts must be deleted or rotated before deploy.** The seed script
+> refuses to run when `NODE_ENV=production` or `VERCEL_ENV=production` unless
+> `ALLOW_PRODUCTION_SEED=yes-i-am-sure` is set.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roles
 
-## Deploy on Vercel
+| Role              | Case visibility                          | Notable limits                       |
+| ----------------- | ---------------------------------------- | ------------------------------------ |
+| `ADMIN_PARTNER`   | Every case in the firm                    | —                                    |
+| `SENIOR_ADVOCATE` | Own cases + direct reports' cases         | No user management                   |
+| `ASSOCIATE`       | Only cases they are assigned to           | Cannot create cases                  |
+| `PARALEGAL`       | Only cases they are assigned to           | **Strategy notes hidden**; no edits  |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Team visibility uses `User.supervisorId`, a self-relation: a senior advocate
+sees cases assigned to anyone reporting to them.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Security model
+
+Authorization is enforced in **two layers**, and the second is the real one.
+
+1. **`src/proxy.ts` — optimistic.** Decodes the session cookie only, no
+   database access, because it runs on every request including prefetches.
+   Bounces anonymous users to `/login` and role-denied routes to `/no-access`.
+2. **`src/lib/dal.ts` — authoritative.** Every case-scoped read goes through
+   `caseScopeFilter()` / `requireCaseAccess()`, which re-check against the
+   database. `requireUser()` also re-reads `isActive` and `role` per request,
+   so deactivating or demoting someone takes effect immediately rather than
+   when their token expires.
+
+Other measures:
+
+- **Field encryption at rest.** `CaseNote.body` and `Hearing.notes` are sealed
+  with AES-256-GCM (`src/lib/crypto.ts`) before they reach Postgres, so a
+  database dump does not expose case strategy. Encrypted columns are not
+  SQL-searchable — document search operates on titles and filenames instead.
+- **Audit log.** `AuditLog` is append-only and records document uploads,
+  views, downloads and deletions, keeping a denormalised title so the trail
+  survives deletion. Partners see it on each document's history page.
+- **Document bytes are never served directly.** Blobs are written with
+  `access: "private"` and read back server-side; a storage ref (blob URL or
+  local path) is never sent to the browser. Every read goes through
+  `/api/documents/[id]/download`, which authorises against the case
+  assignment and writes an audit entry before streaming a byte.
+- **No user enumeration.** Bad email, wrong password and deactivated account
+  all return the same message, and `authorize()` runs a bcrypt comparison even
+  when the user does not exist so timing does not leak.
+- **Not indexable.** The root layout sets `robots: noindex, nofollow`.
+- **The reminder cron is secret-gated.** `/api/cron/hearing-reminders` has no
+  session; it compares `CRON_SECRET` in constant time and refuses to run at
+  all if the secret is unset.
+
+## Notice board
+
+Firm-wide announcements, posted by partners only.
+
+**Read receipts are an explicit acknowledgement, not an auto-mark on view.**
+A receipt that only proves a page rendered is worthless as evidence that
+someone actually read a firm announcement, so the reader has to press
+"I have read this". Acknowledgement is idempotent — clicking twice keeps the
+original timestamp — and editing a notice afterwards does **not** clear
+receipts already given, because that would misrepresent who saw what. A
+materially different announcement warrants a new notice.
+
+Partners get a per-notice receipts view at `/notices/[id]/receipts` showing
+who has acknowledged and who is outstanding. Deactivated staff are excluded
+from the outstanding list.
+
+## Task deadlines
+
+Tasks carry a *kind*, and the kind sets how early alerting starts — missing a
+limitation period is not curable by noticing it the day before:
+
+| Kind                  | Alert lead time |
+| --------------------- | --------------- |
+| `GENERAL`             | 3 days          |
+| `FILING_DEADLINE`     | 14 days         |
+| `LIMITATION_DEADLINE` | 30 days         |
+
+Past-due items get one `OVERDUE` escalation rather than repeating. The sweep
+uses the same bucketing and idempotency contract as hearing reminders, backed
+by `TaskAlert` (unique on task + offset).
+
+**Task visibility:** a task is visible if it is assigned to you, or it hangs
+off a case you can reach. Partners see everything. Personal tasks with no case
+attached stay private to their assignee. Paralegals can keep their own to-do
+list but cannot direct other people.
+
+## Hearing reminders
+
+A daily sweep (`vercel.json` schedules 07:00 UTC) notifies everyone assigned
+to a case when a hearing enters the 7-, 3- and 1-day windows.
+
+- **Bucketed, not exact-day.** A reminder fires for the most urgent window a
+  hearing has *entered*, so a sweep that fails to run for a day catches up
+  instead of skipping a court date silently.
+- **Less urgent windows are marked handled, not fired**, so a hearing booked
+  two days out never sends a stale "in 7 days" reminder afterwards.
+- **Idempotent.** `HearingReminder` is unique on (hearing, offset); re-running
+  the sweep sends nothing twice.
+
+Delivery is in-app (the sidebar bell). `src/lib/notifications/deliver.ts`
+splits channels into a primary in-app record and best-effort outbound ones;
+adding email means implementing `emailChannel.send` and setting
+`NOTIFY_EMAIL_ENABLED=true`, with no change to any caller.
+
+Run the sweeps by hand with:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET"   http://localhost:3000/api/cron/hearing-reminders
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  http://localhost:3000/api/cron/task-deadlines
+```
+
+## Scripts
+
+| Script                | Does                                        |
+| --------------------- | ------------------------------------------- |
+| `npm run dev`         | Dev server                                  |
+| `npm run build`       | Production build                            |
+| `npm run typecheck`   | `tsc --noEmit`                              |
+| `npm run lint`        | ESLint                                      |
+| `npm run db:migrate`  | Create + apply a migration                  |
+| `npm run db:deploy`   | Apply migrations (production)               |
+| `npm run db:seed`     | Placeholder staff accounts + sample matters |
+| `npm run db:studio`   | Prisma Studio                               |
+| `npm run user:password -- <email> "<pw>"` | Set an account's password |
+
+## Build status
+
+1. ✅ Auth, roles, layout
+2. ✅ Case CRUD, list and detail views (list-first, Kanban toggle)
+3. ✅ Documents: upload, download, versioning, search, audit trail
+4. ✅ Hearing diary, calendar + 7/3/1-day reminders
+5. ✅ Tasks, personal dashboard + deadline alerts
+6. ✅ Admin console + firm reports with PDF export
+7. ✅ Notice board with explicit read receipts
+
+All seven modules are delivered.

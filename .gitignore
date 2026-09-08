@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# Commit the example file so new devs know what to set
+!.env.example
+
+# Local document uploads (dev only, when BLOB_READ_WRITE_TOKEN is unset)
+/.uploads
