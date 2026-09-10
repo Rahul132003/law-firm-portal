@@ -9,6 +9,9 @@ import {
   Shield,
   User,
   Settings,
+  KeyRound,
+  Users,
+  Building2,
   LucideIcon
 } from "lucide-react";
 
@@ -23,6 +26,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   shield: Shield,
   user: User,
   settings: Settings,
+  key: KeyRound,
+  users: Users,
+  building: Building2,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {

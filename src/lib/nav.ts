@@ -1,5 +1,5 @@
 import type { Role } from "@/generated/prisma/enums";
-import { canViewReports, isAdmin } from "@/lib/auth/roles";
+import { canViewReports } from "@/lib/auth/roles";
 
 /**
  * Portal information architecture.
@@ -43,13 +43,7 @@ const NAV_DEFINITIONS: readonly NavDefinition[] = [
     visible: canViewReports,
   },
   { href: "/profile", label: "My Profile", icon: "user", ready: true },
-  {
-    href: "/admin",
-    label: "Administration",
-    icon: "shield",
-    ready: true,
-    visible: isAdmin,
-  },
+  { href: "/settings", label: "Settings", icon: "settings", ready: true },
 ];
 
 export function navItemsForRole(role: Role): NavItem[] {

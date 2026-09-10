@@ -11,7 +11,7 @@ import { MIN_PASSWORD_LENGTH } from "@/lib/account/validation";
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs text-red-700">{message}</p>;
+  return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
 export function ChangePasswordForm() {
@@ -38,15 +38,15 @@ export function ChangePasswordForm() {
       <div className="flex items-center gap-3.5 mb-2">
         <span
           aria-hidden="true"
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 border border-sky-300 text-sky-700 text-lg shadow-sm"
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-50 border border-accent-200 text-accent-700 text-lg shadow-sm"
         >
           🔒
         </span>
         <div>
-          <h2 className="text-base font-extrabold tracking-tight text-slate-900">
+          <h2 className="text-base font-extrabold tracking-tight text-primary">
             Change Password
           </h2>
-          <p className="text-xs font-semibold text-slate-500">
+          <p className="text-xs font-semibold text-muted">
             You will need your current password to make this change.
           </p>
         </div>
@@ -108,9 +108,9 @@ export function ChangePasswordForm() {
       {state.message && !state.ok ? (
         <div
           role="alert"
-          className="mt-4 max-w-md rounded-xl border-2 border-rose-400 bg-rose-50 p-4 text-sm font-bold text-rose-950 shadow-sm flex items-start gap-2.5"
+          className="mt-4 max-w-md rounded-xl border-2 border-danger/40 bg-danger-soft p-4 text-sm font-bold text-danger shadow-sm flex items-start gap-2.5"
         >
-          <span className="text-rose-600 text-lg">⚠️</span>
+          <span className="text-danger text-lg">⚠️</span>
           <span>{state.message}</span>
         </div>
       ) : null}
@@ -118,12 +118,12 @@ export function ChangePasswordForm() {
       {state.ok ? (
         <div
           role="status"
-          className="mt-4 max-w-md rounded-xl border-2 border-emerald-500 bg-emerald-50 p-4 text-sm font-bold text-emerald-950 shadow-md flex items-start gap-2.5"
+          className="mt-4 max-w-md rounded-xl border-2 border-success/40 bg-success-soft p-4 text-sm font-bold text-success shadow-md flex items-start gap-2.5"
         >
-          <span className="text-emerald-600 text-lg">✅</span>
+          <span className="text-success text-lg">✅</span>
           <div className="flex-1">
-            <p className="font-extrabold text-emerald-900">{state.message}</p>
-            <p className="mt-0.5 text-xs font-semibold text-emerald-800">
+            <p className="font-extrabold text-success">{state.message}</p>
+            <p className="mt-0.5 text-xs font-semibold text-success">
               Use your new password next time you sign in.
             </p>
           </div>

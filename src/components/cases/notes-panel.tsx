@@ -62,13 +62,13 @@ export function NoteComposer({
         className="field-input resize-y"
       />
       {state.errors?.body ? (
-        <p className="mt-1 text-xs text-red-700">{state.errors.body}</p>
+        <p className="mt-1 text-xs text-danger">{state.errors.body}</p>
       ) : null}
 
       {state.message ? (
         <p
           role="alert"
-          className="mt-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800"
+          className="mt-2 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
         >
           {state.message}
         </p>
@@ -130,7 +130,7 @@ export function NoteList({ notes }: { notes: NoteView[] }) {
               {formatTimestamp(note.createdAt)}
             </span>
             {note.visibility === "STRATEGY" ? (
-              <span className="rounded-full border border-brass-300 bg-brass-50 px-2 py-0.5 text-[11px] font-medium text-brass-800">
+              <span className="rounded-full border border-accent-200 bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-800">
                 Strategy
               </span>
             ) : null}
@@ -139,7 +139,7 @@ export function NoteList({ notes }: { notes: NoteView[] }) {
                 type="button"
                 disabled={pending}
                 onClick={() => startTransition(() => deleteCaseNote(note.id))}
-                className="ml-auto text-xs text-secondary hover:text-red-700 disabled:opacity-60"
+                className="ml-auto text-xs text-secondary hover:text-danger disabled:opacity-60"
               >
                 Delete
               </button>

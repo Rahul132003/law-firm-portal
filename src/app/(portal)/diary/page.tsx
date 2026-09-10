@@ -9,6 +9,7 @@ import {
   listHearingsInRange,
   listUpcomingHearings,
 } from "@/lib/hearings/queries";
+import { canManageHearings } from "@/lib/auth/roles";
 import { requireUser } from "@/lib/dal";
 import { serverNow } from "@/lib/time";
 import { FIRM_NAME } from "@/lib/firm";
@@ -40,6 +41,7 @@ function relativeDay(date: Date, now: Date): string {
 export default async function DiaryPage(props: PageProps<"/diary">) {
   const searchParams = await props.searchParams;
   const user = await requireUser();
+  const canEdit = canManageHearings(user.role);
 
   const now = serverNow();
   const yearParam = Number(first(searchParams, "year"));
@@ -71,6 +73,7 @@ export default async function DiaryPage(props: PageProps<"/diary">) {
     purpose: hearing.purpose,
     notes: hearing.notes || null,
     nextDate: hearing.nextDate || null,
+    previousDate: hearing.previousDate || null,
     caseId: hearing.caseId,
     caseNumber: hearing.case.caseNumber,
     caseTitle: hearing.case.title,
@@ -119,30 +122,30 @@ export default async function DiaryPage(props: PageProps<"/diary">) {
           label="Month Hearings"
           value={totalMonth}
           icon="📅"
-          accentBg="bg-sky-100"
-          accentText="text-sky-600"
+          accentBg="bg-accent-50"
+          accentText="text-accent-700"
         />
         <StatCard
           label="Today"
           value={todayHearings}
           icon="🔔"
-          accentBg="bg-amber-100"
-          accentText="text-amber-600"
+          accentBg="bg-warning-soft"
+          accentText="text-warning"
           pulse={todayHearings > 0}
         />
         <StatCard
           label="Active Courts"
           value={distinctCourts}
           icon="🏛️"
-          accentBg="bg-indigo-100"
-          accentText="text-indigo-600"
+          accentBg="bg-sunken"
+          accentText="text-status-judgment"
         />
         <StatCard
           label="Next 7 Days"
           value={next7Days}
           icon="⏳"
-          accentBg="bg-emerald-100"
-          accentText="text-emerald-600"
+          accentBg="bg-success-soft"
+          accentText="text-success"
         />
       </div>
 
@@ -152,13 +155,14 @@ export default async function DiaryPage(props: PageProps<"/diary">) {
           year={year}
           month={month}
           hearings={calendarHearings}
+          canEdit={canEdit}
         />
 
         {/* ── Upcoming Sidebar ── */}
         <aside className="card h-fit overflow-hidden">
-          <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-900">Next Up</h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+          <div className="border-b border-hairline bg-sunken px-5 py-4">
+            <h2 className="text-sm font-bold text-primary">Next Up</h2>
+            <p className="mt-0.5 text-[11px] text-muted">
               Reminders go out 7, 3 and 1 days ahead.
             </p>
           </div>
@@ -167,10 +171,10 @@ export default async function DiaryPage(props: PageProps<"/diary">) {
             {upcoming.length === 0 ? (
               <div className="py-6 text-center">
                 <span className="mb-2 block text-3xl">📭</span>
-                <p className="text-sm font-bold text-slate-600">
+                <p className="text-sm font-bold text-secondary">
                   No upcoming hearings
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-muted">
                   Your diary is clear for now.
                 </p>
               </div>
@@ -184,26 +188,26 @@ export default async function DiaryPage(props: PageProps<"/diary">) {
                     <li key={hearing.id}>
                       <Link
                         href={`/cases/${hearing.caseId}/hearings`}
-                        className="group block rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
+                        className="group block rounded-xl border border-hairline bg-white p-3 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-accent-200 hover:shadow-md"
                       >
                         <div className="mb-1.5 flex items-center justify-between">
                           <span
                             className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
                               isToday
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-sky-100 text-sky-700"
+                                ? "bg-warning-soft text-warning"
+                                : "bg-accent-50 text-accent-700"
                             }`}
                           >
                             {isToday && (
                               <span className="relative flex size-1.5">
-                                <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-500 opacity-75" />
-                                <span className="relative inline-flex size-1.5 rounded-full bg-amber-500" />
+                                <span className="absolute inline-flex size-full animate-ping rounded-full bg-warning opacity-75" />
+                                <span className="relative inline-flex size-1.5 rounded-full bg-warning" />
                               </span>
                             )}
                             {rel}
                           </span>
 
-                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600">
+                          <span className="rounded-md bg-sunken px-1.5 py-0.5 font-mono text-[10px] font-bold text-secondary">
                             {new Intl.DateTimeFormat("en-GB", {
                               hour: "2-digit",
                               minute: "2-digit",
@@ -211,18 +215,18 @@ export default async function DiaryPage(props: PageProps<"/diary">) {
                           </span>
                         </div>
 
-                        <span className="block truncate text-sm font-bold text-slate-900 transition group-hover:text-sky-600">
+                        <span className="block truncate text-sm font-bold text-primary transition group-hover:text-accent-700">
                           {hearing.case.title}
                         </span>
-                        <span className="block truncate font-mono text-[11px] text-slate-500">
+                        <span className="block truncate font-mono text-[11px] text-muted">
                           {hearing.case.caseNumber}
                         </span>
 
                         <div className="mt-1.5 flex items-center justify-between">
-                          <span className="truncate text-xs text-slate-600">
+                          <span className="truncate text-xs text-secondary">
                             {hearing.purpose}
                           </span>
-                          <span className="flex items-center gap-0.5 text-[11px] text-slate-400">
+                          <span className="flex items-center gap-0.5 text-[11px] text-muted">
                             🏛️{" "}
                             <span className="max-w-20 truncate">
                               {hearing.court}
@@ -268,8 +272,8 @@ function StatCard({
         {icon}
       </div>
       <div>
-        <span className="block text-xl font-black text-slate-900">{value}</span>
-        <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <span className="block text-xl font-black text-primary">{value}</span>
+        <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted">
           {label}
         </span>
       </div>

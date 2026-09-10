@@ -1,169 +1,279 @@
 @import "tailwindcss";
 
-/* ---------------------------------------------------------------------------
-   Design tokens — Premium Law Firm Portal
-   --------------------------------------------------------------------------- */
+/* ===========================================================================
+   PORTAL — design tokens
+   ---------------------------------------------------------------------------
+   A mid-blue and off-white system: a cool, neutral off-white canvas, a single
+   mid-tone steel-blue accent, and hairline rules instead of glows. Structure
+   is carried by borders and spacing rather than shadow, which keeps dense
+   case tables legible.
+
+   IMPORTANT — every semantic name below is declared inside `@theme` on
+   purpose. Tailwind v4 only generates a utility (`text-secondary`,
+   `bg-raised`, `border-hairline`) if the matching `--color-*` token exists
+   here. A previous revision defined these as plain `:root` variables, which
+   silently produced no CSS at all and flattened the whole type hierarchy.
+   =========================================================================== */
+
+@theme {
+  /* ── Type ───────────────────────────────────────────────────────────── */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* ── Surfaces: off-white, not warm paper ──────────────────────────────
+     Canvas carries a faint cool/blue tint rather than the cream of the
+     previous revision, so it sits next to the steel-blue accent without a
+     warm-vs-cool clash. Cards stay pure white, which is what actually makes
+     them read as "raised" above the canvas.
+     ------------------------------------------------------------------- */
+  --color-canvas: #f6f7f9;
+  --color-raised: #ffffff;
+  --color-sunken: #eef1f5;
+  --color-hairline: #dfe4ea;
+  --color-hairline-strong: #c6cdd6;
+
+  /* ── Ink: blue, not black ──────────────────────────────────────────────
+     Primary text is the darkest step of the accent scale itself, not an
+     independent near-black — the whole portal is built from one blue
+     family rather than a grey scale with blue trim.
+     ------------------------------------------------------------------- */
+  --color-primary: #142f63;
+  --color-secondary: #4b5563;
+  --color-muted: #767f8d;
+
+  /* ── Accent: a real, recognisable mid blue ────────────────────────────
+     A previous pass here used a desaturated steel-blue — technically blue
+     by hue, but low enough in chroma that the darkest steps still read as
+     charcoal at a glance. This scale trades some of that restraint for
+     saturation the eye actually registers as "blue", at every step from the
+     lightest badge tint to the darkest banner fill.
+     ------------------------------------------------------------------- */
+  --color-accent-50: #eaf2fe;
+  --color-accent-100: #d3e4fd;
+  --color-accent-200: #a8c8fb;
+  --color-accent-300: #7aa9f5;
+  --color-accent-400: #4f87ec;
+  --color-accent-500: #2f6bdc;
+  --color-accent-600: #1e54c4;
+  --color-accent-700: #1a459e;
+  --color-accent-800: #17397d;
+  --color-accent-900: #142f63;
+
+  /* ── Cool neutrals, for tinted chips and hover states ────────────────── */
+  --color-slate-50: #f4f6f8;
+  --color-slate-100: #e8edf1;
+  --color-slate-200: #d5dde3;
+  --color-slate-300: #b7c2cc;
+  --color-slate-600: #5b6772;
+
+  /* ── Case status ────────────────────────────────────────────────────────
+     Validated for adjacent-pair separation in lifecycle order against the
+     canvas surface: worst CVD pair ΔE 11.6 (deutan), worst normal-vision
+     pair ΔE 17.4, all ≥3:1 contrast.
+
+     "Filed" was blue in the original set. Once the brand accent became a
+     genuinely vivid blue, the two sat only ΔE 6.1 apart — hard to tell apart
+     even with normal colour vision, and it made an ordinary "Filed" chip
+     look like interactive chrome. It is now a neutral graphite instead: a
+     reasonable choice for the initial, not-yet-progressed status, and it
+     matches --color-slate-600.
+
+     Two documented chroma-floor deviations, both accepted for the same
+     reason: status is never encoded by colour alone here, every badge
+     carries its label. "Filed" at chroma 0.023 is graphite on purpose.
+     "Closed" at chroma 0.097 against a 0.10 floor reads very slightly grey;
+     lifting it further turned it neon against the off-white surface.
+     ------------------------------------------------------------------- */
+  --color-status-filed: #5b6772;
+  --color-status-trial: #b26a0f;
+  --color-status-judgment: #7d4fa8;
+  --color-status-appeal: #c0392b;
+  --color-status-closed: #01857b;
+
+  /* ── Feedback ───────────────────────────────────────────────────────── */
+  --color-danger: #c0392b;
+  --color-danger-soft: #fdf0ee;
+  --color-warning: #b26a0f;
+  --color-warning-soft: #fdf5e9;
+  --color-success: #01857b;
+  --color-success-soft: #eaf6f4;
+
+  /* ── Radii: squarer than the previous revision, document-like ───────── */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+
+  /* ── Rail: the same blue family, just its darkest steps ───────────────
+     The navigation rail is not a separately-tinted dark palette — it is
+     literally accent-900/800/700, reused. One blue runs through the whole
+     portal: the darkest steps happen to be dark enough to serve as the
+     rail's background, raised layer and border, and the mid step (500)
+     is bright enough to pop as the active nav pill against them.
+     ------------------------------------------------------------------- */
+  --color-rail: #142f63;
+  --color-rail-raised: #17397d;
+  --color-rail-border: #1a459e;
+  --color-rail-ink: #eef2f4;
+  --color-rail-ink-muted: #9fb3d6;
+  --color-rail-accent: #2f6bdc;
+  --color-rail-accent-ink: #d3e4fd;
+}
 
 :root {
   color-scheme: light;
-
-  /* Fonts */
-  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-  --font-serif: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, monospace;
-
-  /* Case status hues */
-  --color-status-filed: #0284c7;
-  --color-status-trial: #d97706;
-  --color-status-judgment: #6366f1;
-  --color-status-appeal: #e11d48;
-  --color-status-closed: #059669;
-
-  /* Porcelain canvas & Crisp surfaces */
-  --surface-canvas: #f8fafc;
-  --surface-raised: #ffffff;
-  --surface-glass: rgba(255, 255, 255, 0.95);
-  --surface-sunken: #f1f5f9;
-  --surface-border: #e2e8f0;
-  --surface-border-hover: #0ea5e9;
-
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-
-  /* Brand: Sky Blue */
-  --brand-primary: #0284c7;
-  --brand-primary-hover: #0369a1;
-  --brand-light: rgba(2, 132, 199, 0.12);
-
-  /* Drop shadows */
-  --glow-brand: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
-  --glow-hover: 0 10px 30px -4px rgba(2, 132, 199, 0.12);
 }
 
 body {
-  background-color: var(--surface-canvas);
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14, 165, 233, 0.05) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(15, 23, 42, 0.03) 0%, transparent 60%);
-  background-attachment: fixed;
-  color: var(--text-primary);
+  background-color: var(--color-canvas);
+  color: var(--color-primary);
   font-family: var(--font-sans);
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 0.9375rem;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
+  text-rendering: optimizeLegibility;
 }
 
-/* Global typography — Modern, clean, crisp styling */
 @layer base {
-  h1, h2, h3, h4, h5, h6 {
+  /* Headings are set in the serif — the one place the editorial voice shows
+     loudest. UI chrome stays in the sans for density. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    color: var(--color-primary);
+    font-weight: 600;
+    letter-spacing: -0.011em;
+  }
+
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-sans);
-    color: #0f172a;
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* Case numbers, file names and reference codes read as records. */
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
   }
 
   :focus-visible {
-    outline: 2px solid #0284c7;
+    outline: 2px solid var(--color-accent-600);
     outline-offset: 2px;
-    border-radius: 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  ::selection {
+    background: var(--color-accent-100);
+    color: var(--color-accent-900);
   }
 }
 
 @layer components {
-  /* ── Crisp Light card ───────────────────────────────────────── */
+  /* ── Card: a ruled panel, not a floating chip ─────────────────────── */
   .card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 1.25rem;
-    box-shadow: 0 2px 5px 0 rgba(15, 23, 42, 0.04), 0 1px 3px -1px rgba(15, 23, 42, 0.04);
-    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
-    position: relative;
-    overflow: hidden;
+    background: var(--color-raised);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
   }
 
-  /* Interactive cards lift gently + glow border */
+  /* Opt-in lift, for cards that are genuinely clickable. */
+  .card-interactive {
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
   .card-interactive:hover {
-    transform: translateY(-2px);
-    border-color: rgba(2, 132, 199, 0.4);
-    box-shadow: 0 12px 28px -5px rgba(15, 23, 42, 0.08), 0 8px 12px -6px rgba(2, 132, 199, 0.12);
+    border-color: var(--color-hairline-strong);
+    background: var(--color-slate-50);
   }
 
-  /* ── Surface card styling (Office Portal aesthetic) ───────── */
+  /* A panel that reads as inset rather than raised. */
   .surface-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 1.25rem;
-    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 16px 0 rgba(15, 23, 42, 0.03);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--color-sunken);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
   }
 
-  .surface-card:hover {
-    box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06), 0 8px 24px -4px rgba(2, 132, 199, 0.1);
+  /* ── Section label: small caps, the editorial signature ───────────── */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-muted);
   }
 
-  /* ── Form labels ──────────────────────────────────────────────── */
+  /* ── Forms ────────────────────────────────────────────────────────── */
   .field-label {
     display: block;
     font-size: 0.8125rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #334155;
-    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--color-secondary);
+    margin-bottom: 0.375rem;
   }
 
-  /* ── Form inputs ──────────────────────────────────────────────── */
   .field-input {
     width: 100%;
-    background: #ffffff;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 0.75rem;
-    padding: 0.875rem 1.125rem;
-    font-size: 1rem;
-    font-weight: 500;
-    color: #0f172a;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
-  }
-
-  .field-input:hover {
-    border-color: #0ea5e9;
-  }
-
-  .field-input:focus {
-    background: #ffffff;
-    border-color: #0284c7;
-    box-shadow: 0 0 0 3.5px rgba(2, 132, 199, 0.2);
-    outline: none;
+    background: var(--color-raised);
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9375rem;
+    font-family: inherit;
+    color: var(--color-primary);
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .field-input::placeholder {
-    color: #94a3b8;
-    font-style: italic;
+    color: var(--color-muted);
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: var(--color-accent-600);
+    box-shadow: 0 0 0 3px var(--color-accent-50);
   }
 
   .field-input:disabled {
-    opacity: 0.5;
+    background: var(--color-sunken);
+    color: var(--color-muted);
     cursor: not-allowed;
+  }
+
+  /* ── Data tables read as a ruled ledger ───────────────────────────── */
+  .ledger-head {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-muted);
   }
 }
 
-/* ── Calendar modal animations ─────────────────────────────── */
-@keyframes calFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* Wide content scrolls inside its own container, never the page body. */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
-@keyframes calScaleUp {
-  from { opacity: 0; transform: scale(0.95) translateY(8px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0);    }
-}
-
-/* ── Print styles for Court Diary ──────────────────────────── */
 @media print {
-  body { background: white !important; }
-  nav, aside, header button, [data-print-hide] { display: none !important; }
-  .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+  .card,
+  .surface-card {
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }

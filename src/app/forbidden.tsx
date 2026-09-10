@@ -11,7 +11,7 @@ export default function Forbidden() {
       {" "}
       <div className="max-w-md text-center">
         {" "}
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brass-600">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
           403 — Forbidden
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-primary">
@@ -24,7 +24,7 @@ export default function Forbidden() {
         </p>
         <Link
           href="/dashboard"
-          className="mt-6 inline-block rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800"
+          className="mt-6 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-secondary"
         >
           Back to dashboard
         </Link>

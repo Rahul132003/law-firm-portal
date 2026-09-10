@@ -208,8 +208,8 @@ export function ViewToggle({ view }: { view: "list" | "board" }) {
           onClick={() => switchTo(mode)}
           className={
             view === mode
-              ? "rounded-md bg-sky-600 text-white font-extrabold px-4 py-1.5 text-sm shadow-sm"
-              : "rounded-md px-4 py-1.5 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
+              ? "rounded-md bg-accent-700 text-white font-extrabold px-4 py-1.5 text-sm shadow-sm"
+              : "rounded-md px-4 py-1.5 text-sm font-bold text-secondary hover:text-primary transition-colors"
           }
         >
           {mode === "list" ? "List" : "Board"}

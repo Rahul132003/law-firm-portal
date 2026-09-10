@@ -101,7 +101,7 @@ export function HearingList({
                     className={
                       isPast
                         ? "rounded-full bg-sunken px-2 py-0.5 text-[11px] font-medium text-secondary"
-                        : "rounded-full bg-brass-50 px-2 py-0.5 text-[11px] font-medium text-brass-800"
+                        : "rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-800"
                     }
                   >
                     {isPast ? "Past" : "Upcoming"}
@@ -151,7 +151,7 @@ export function HearingList({
                             router.refresh();
                           })
                         }
-                        className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold text-red-800"
+                        className="rounded-md border border-danger/30 px-2 py-1 text-xs font-semibold text-danger"
                       >
                         Confirm
                       </button>
@@ -167,7 +167,7 @@ export function HearingList({
                     <button
                       type="button"
                       onClick={() => setConfirming(hearing.id)}
-                      className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:border-red-300 hover:text-red-700"
+                      className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:border-danger/30 hover:text-danger"
                     >
                       Delete
                     </button>

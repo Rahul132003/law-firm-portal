@@ -52,13 +52,13 @@ function Tile({
   tone?: string;
 }) {
   return (
-    <div className="card px-5 py-4 border border-slate-200/90 bg-white shadow-sm">
+    <div className="card px-5 py-4 border border-hairline/90 bg-white shadow-sm">
       <span
-        className={`block text-3xl font-extrabold ${tone ?? "text-amber-700"}`}
+        className={`block text-3xl font-extrabold ${tone ?? "text-warning"}`}
       >
         {value}
       </span>
-      <span className="mt-1 block text-xs font-extrabold uppercase tracking-wider text-slate-500">
+      <span className="mt-1 block text-xs font-extrabold uppercase tracking-wider text-muted">
         {label}
       </span>
     </div>
@@ -75,9 +75,9 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="card p-6 border border-slate-200/90 bg-white shadow-sm">
-      <h2 className="text-base font-bold tracking-tight text-slate-900">{title}</h2>
-      {hint ? <p className="mt-0.5 text-xs font-semibold text-slate-500">{hint}</p> : null}
+    <section className="card p-6 border border-hairline/90 bg-white shadow-sm">
+      <h2 className="text-base font-bold tracking-tight text-primary">{title}</h2>
+      {hint ? <p className="mt-0.5 text-xs font-semibold text-muted">{hint}</p> : null}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -152,10 +152,10 @@ export default async function ReportsPage() {
     <div className="mx-auto max-w-6xl">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-extrabold tracking-tight text-primary">
             Reports & Analytics
           </h1>
-          <p className="mt-1 text-sm font-semibold text-slate-600">{scopeNote}</p>
+          <p className="mt-1 text-sm font-semibold text-secondary">{scopeNote}</p>
         </div>
         <ExportPdfButton payload={payload} />
       </header>
@@ -166,7 +166,7 @@ export default async function ReportsPage() {
         <Tile
           label="Overdue tasks"
           value={summary.overdueTasks}
-          tone={summary.overdueTasks > 0 ? "text-rose-600 font-extrabold" : undefined}
+          tone={summary.overdueTasks > 0 ? "text-danger font-extrabold" : undefined}
         />
         <Tile label="Documents on file" value={summary.documentCount} />
       </div>
@@ -196,7 +196,7 @@ export default async function ReportsPage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel title="Hearings this week">
           {hearings.length === 0 ? (
-            <p className="py-6 text-center text-sm font-semibold text-slate-500">
+            <p className="py-6 text-center text-sm font-semibold text-muted">
               Nothing listed in the next seven days.
             </p>
           ) : (
@@ -204,18 +204,18 @@ export default async function ReportsPage() {
               {hearings.map((hearing) => (
                 <li
                   key={hearing.id}
-                  className="border-b border-slate-100 pb-2.5 last:border-0 last:pb-0"
+                  className="border-b border-hairline pb-2.5 last:border-0 last:pb-0"
                 >
                   <Link
                     href={`/cases/${hearing.caseId}/hearings`}
-                    className="text-sm font-bold text-slate-900 hover:text-amber-700 transition-colors"
+                    className="text-sm font-bold text-primary hover:text-warning transition-colors"
                   >
                     {hearing.case.title}
                   </Link>
-                  <p className="mt-0.5 text-xs font-bold text-amber-700">
+                  <p className="mt-0.5 text-xs font-bold text-warning">
                     {dateTimeFmt.format(hearing.date)} · {hearing.court}
                   </p>
-                  <p className="text-xs font-medium text-slate-500">
+                  <p className="text-xs font-medium text-muted">
                     {hearing.case.caseNumber} · {hearing.purpose}
                   </p>
                 </li>
@@ -226,7 +226,7 @@ export default async function ReportsPage() {
 
         <Panel title="Overdue tasks">
           {overdue.length === 0 ? (
-            <p className="py-6 text-center text-sm font-semibold text-slate-500">
+            <p className="py-6 text-center text-sm font-semibold text-muted">
               Nothing overdue.
             </p>
           ) : (
@@ -234,21 +234,21 @@ export default async function ReportsPage() {
               {overdue.slice(0, 12).map((task) => (
                 <li
                   key={task.id}
-                  className="border-b border-slate-100 pb-2.5 last:border-0 last:pb-0"
+                  className="border-b border-hairline pb-2.5 last:border-0 last:pb-0"
                 >
-                  <p className="text-sm font-bold text-slate-900">{task.description}</p>
-                  <p className="mt-0.5 text-xs font-extrabold text-rose-600">
+                  <p className="text-sm font-bold text-primary">{task.description}</p>
+                  <p className="mt-0.5 text-xs font-extrabold text-danger">
                     Due {dateFmt.format(task.dueDate)} ·{" "}
                     {TASK_KIND_LABELS[task.kind]}
                   </p>
-                  <p className="text-xs font-medium text-slate-500">
+                  <p className="text-xs font-medium text-muted">
                     {task.assignedTo.name} ·{" "}
                     {task.case?.caseNumber ?? "Personal task"}
                   </p>
                 </li>
               ))}
               {overdue.length > 12 ? (
-                <li className="pt-1 text-xs font-medium text-slate-500">
+                <li className="pt-1 text-xs font-medium text-muted">
                   and {overdue.length - 12} more — see the PDF export.
                 </li>
               ) : null}
@@ -259,39 +259,39 @@ export default async function ReportsPage() {
 
       {/* A table view of the chart data, so identity is never colour-alone. */}
       <details className="mt-6">
-        <summary className="cursor-pointer text-xs font-bold text-slate-600 hover:text-amber-700 transition-colors">
+        <summary className="cursor-pointer text-xs font-bold text-secondary hover:text-warning transition-colors">
           View chart data as a table
         </summary>
-        <div className="card mt-3 overflow-x-auto p-4 border border-slate-200 bg-white shadow-sm">
+        <div className="card mt-3 overflow-x-auto p-4 border border-hairline bg-white shadow-sm">
           <table className="w-full min-w-[32rem] text-sm">
             <caption className="sr-only">
               Open and total cases per advocate
             </caption>
             <thead>
-              <tr className="border-b border-slate-200 text-left">
-                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-slate-500">
+              <tr className="border-b border-hairline text-left">
+                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-muted">
                   Advocate
                 </th>
-                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-slate-500">
+                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-muted">
                   Role
                 </th>
-                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-slate-500">
+                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-muted">
                   Open
                 </th>
-                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-slate-500">
+                <th scope="col" className="px-3 py-2.5 font-extrabold uppercase tracking-wider text-xs text-muted">
                   Total
                 </th>
               </tr>
             </thead>
             <tbody>
               {perAdvocate.map((row) => (
-                <tr key={row.userId} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                  <td className="px-3 py-2.5 font-bold text-slate-900">{row.name}</td>
-                  <td className="px-3 py-2.5 font-semibold text-slate-600">
+                <tr key={row.userId} className="border-b border-hairline last:border-0 hover:bg-sunken transition-colors">
+                  <td className="px-3 py-2.5 font-bold text-primary">{row.name}</td>
+                  <td className="px-3 py-2.5 font-semibold text-secondary">
                     {ROLE_LABELS[row.role]}
                   </td>
-                  <td className="px-3 py-2.5 font-extrabold text-amber-700">{row.open}</td>
-                  <td className="px-3 py-2.5 font-bold text-slate-800">{row.total}</td>
+                  <td className="px-3 py-2.5 font-extrabold text-warning">{row.open}</td>
+                  <td className="px-3 py-2.5 font-bold text-primary">{row.total}</td>
                 </tr>
               ))}
             </tbody>

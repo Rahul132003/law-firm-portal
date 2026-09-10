@@ -37,7 +37,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
       </div>
 
       {/* Main Login Card Container */}
-      <div className="relative z-10 w-full max-w-md rounded-[32px] border border-slate-100 bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,148,210,0.12)] sm:p-10">
+      <div className="relative z-10 w-full max-w-md rounded-[32px] border border-hairline bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,148,210,0.12)] sm:p-10">
         {/* Header with Law Firm Emblem */}
         <div className="mb-7 text-center">
           {/* Scales of Justice & Law Pillar Emblem */}
@@ -79,12 +79,12 @@ export default async function LoginPage(props: PageProps<"/login">) {
           </div>
 
           {/* Title: LAW FIRM PORTAL */}
-          <h1 className="font-serif text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="font-serif text-2xl font-black uppercase tracking-tight text-primary sm:text-3xl">
             LAW FIRM <span className="text-[#0094d2]">PORTAL</span>
           </h1>
 
           {/* Subtitle */}
-          <p className="mt-1 text-sm font-medium text-slate-500">
+          <p className="mt-1 text-sm font-medium text-muted">
             Log in to your workspace ({FIRM_NAME})
           </p>
         </div>
@@ -93,7 +93,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
         <LoginForm notice={notice} />
 
         {/* Footer Note */}
-        <p className="mt-6 text-center text-xs text-slate-400 font-serif">
+        <p className="mt-6 text-center text-xs text-muted font-serif">
           {FIRM_NAME} • Internal Legal Case Management
         </p>
       </div>

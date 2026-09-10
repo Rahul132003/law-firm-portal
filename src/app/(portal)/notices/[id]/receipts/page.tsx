@@ -63,7 +63,7 @@ export default async function NoticeReceiptsPage(
         className="mb-6 h-2 w-full overflow-hidden rounded-full bg-sunken"
       >
         <div
-          className="h-full rounded-full bg-brass-500"
+          className="h-full rounded-full bg-accent-600"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -98,7 +98,7 @@ export default async function NoticeReceiptsPage(
           </h2>
           <p className="mt-0.5 text-xs text-muted">Active staff only.</p>
           {receipts.outstanding.length === 0 ? (
-            <p className="mt-3 text-sm text-emerald-700">
+            <p className="mt-3 text-sm text-success">
               Everyone has acknowledged this notice.
             </p>
           ) : (

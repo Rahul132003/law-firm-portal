@@ -180,7 +180,7 @@ export function ExportPdfButton({ payload }: { payload: ReportPayload }) {
         {busy ? "Preparing…" : "Export PDF"}
       </button>
       {error ? (
-        <span role="alert" className="text-xs text-red-700">
+        <span role="alert" className="text-xs text-danger">
           {error}
         </span>
       ) : null}

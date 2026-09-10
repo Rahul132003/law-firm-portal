@@ -13,11 +13,12 @@ export const blobDriver: StorageDriver = {
   name: "vercel-blob",
 
   async put(key, body, contentType): Promise<StoredFile> {
+    const accessMode =
+      (process.env.BLOB_ACCESS_MODE as "public" | "private") || "public";
+
     const result = await put(key, body, {
-      access: "private",
+      access: accessMode,
       contentType,
-      // The key already carries a per-document cuid, so a second random
-      // suffix would only make the object harder to reconcile.
       addRandomSuffix: false,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
@@ -30,14 +31,32 @@ export const blobDriver: StorageDriver = {
   },
 
   async getStream(ref) {
-    const result = await get(ref, {
-      // Must match how the blob was written, or the read is rejected.
-      access: "private",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
+    const accessMode =
+      (process.env.BLOB_ACCESS_MODE as "public" | "private") || "public";
 
-    if (!result || result.statusCode !== 200) return null;
-    return result.stream;
+    try {
+      const result = await get(ref, {
+        access: accessMode,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+
+      if (result && result.statusCode === 200 && result.stream) {
+        return result.stream;
+      }
+    } catch {
+      // Fall through to fetch if SDK get is skipped or for public store URLs
+    }
+
+    try {
+      const response = await fetch(ref);
+      if (response.ok && response.body) {
+        return response.body as ReadableStream<Uint8Array>;
+      }
+    } catch (err) {
+      console.error("Failed to fetch stream from Blob URL:", err);
+    }
+
+    return null;
   },
 
   async remove(ref) {

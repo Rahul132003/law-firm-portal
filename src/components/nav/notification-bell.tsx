@@ -30,11 +30,21 @@ export function NotificationBell({
   notifications,
   unreadCount,
   nowMs,
+  collapsed = false,
+  openDirection = "up",
 }: {
   notifications: NotificationItem[];
   unreadCount: number;
   /** Server render time; keeps relative labels stable across hydration. */
   nowMs: number;
+  /** Icon-only presentation for the collapsed rail. */
+  collapsed?: boolean;
+  /**
+   * Which way the panel unfolds from the trigger. "up" suits the rail, where
+   * the bell sits near the bottom of the screen; "down" suits the top bar,
+   * where opening upward would push the panel off the top of the viewport.
+   */
+  openDirection?: "up" | "down";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -51,7 +61,8 @@ export function NotificationBell({
             ? `Notifications, ${unreadCount} unread`
             : "Notifications"
         }
-        className="relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-secondary transition-colors hover:bg-sunken hover:text-primary"
+        title={collapsed ? "Notifications" : undefined}
+        className={`relative flex w-full items-center rounded-md text-xs text-secondary transition-colors hover:bg-sunken hover:text-primary ${collapsed ? "justify-center py-2.5" : "gap-2 px-2 py-2"}`}
       >
         <svg
           viewBox="0 0 20 20"
@@ -64,17 +75,30 @@ export function NotificationBell({
           <path d="M6 8a4 4 0 1 1 8 0c0 3 1 4.5 1.5 5h-11C5 12.5 6 11 6 8Z" />{" "}
           <path d="M8.5 15.5a1.5 1.5 0 0 0 3 0" />
         </svg>
-        <span>Notifications</span>
+        {!collapsed ? <span>Notifications</span> : null}
         {unreadCount > 0 ? (
-          <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-brass-500 px-1 text-[10px] font-bold text-white">
-            {" "}
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
+          collapsed ? (
+            // Corner dot: a full count will not fit a 68px rail.
+            <span
+              aria-hidden="true"
+              className="absolute right-2 top-1.5 size-2 rounded-full border border-raised bg-danger"
+            />
+          ) : (
+            <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-accent-700 px-1 text-[10px] font-semibold text-white">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )
         ) : null}
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 z-20 mb-2 max-h-96 w-72 overflow-y-auto rounded-xl border border-hairline bg-raised shadow-lg">
+        <div
+          className={`absolute z-30 max-h-96 w-72 overflow-y-auto rounded-lg border border-hairline bg-raised shadow-lg ${
+            openDirection === "up"
+              ? "bottom-full left-0 mb-2"
+              : "right-0 top-full mt-2"
+          }`}
+        >
           {" "}
           <div className="flex items-center justify-between border-b border-hairline px-3 py-2">
             {" "}
@@ -109,7 +133,7 @@ export function NotificationBell({
                       {!item.readAt ? (
                         <span
                           aria-hidden="true"
-                          className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brass-500"
+                          className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent-600"
                         />
                       ) : (
                         <span

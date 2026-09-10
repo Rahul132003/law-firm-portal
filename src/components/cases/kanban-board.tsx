@@ -66,7 +66,7 @@ export function KanbanBoard({
       {error ? (
         <p
           role="alert"
-          className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -97,7 +97,7 @@ export function KanbanBoard({
                 if (caseId) move(caseId, status, from);
               }}
               className={`flex w-72 shrink-0 flex-col rounded-xl border border-t-2 border-hairline bg-sunken/60 ${style.column} ${
-                dragOver === status ? "ring-2 ring-brass-400" : ""
+                dragOver === status ? "ring-2 ring-accent-300" : ""
               }`}
             >
               <header className="flex items-center justify-between px-3 py-2.5">

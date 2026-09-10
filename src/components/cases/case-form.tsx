@@ -34,7 +34,7 @@ const EMPTY: CaseFormState = {};
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs text-red-700">{message}</p>;
+  return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
 export function CaseForm({
@@ -71,7 +71,7 @@ export function CaseForm({
       {state.message ? (
         <p
           role="alert"
-          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
         >
           {state.message}
         </p>
@@ -329,7 +329,7 @@ export function CaseForm({
                         current.filter((_, i) => i !== index),
                       )
                     }
-                    className="text-xs font-medium text-red-700 hover:underline"
+                    className="text-xs font-medium text-danger hover:underline"
                   >
                     Remove
                   </button>

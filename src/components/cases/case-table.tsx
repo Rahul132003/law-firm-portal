@@ -25,9 +25,9 @@ function TeamCell({
   const overflow = assignments.length - shown.length;
 
   return (
-    <span className="font-semibold text-slate-700">
+    <span className="font-semibold text-secondary">
       {shown.map((entry) => entry.user.name).join(", ")}
-      {overflow > 0 ? <span className="text-slate-500"> +{overflow}</span> : null}
+      {overflow > 0 ? <span className="text-muted"> +{overflow}</span> : null}
     </span>
   );
 }
@@ -35,26 +35,26 @@ function TeamCell({
 export function CaseTable({ cases }: { cases: CaseSummary[] }) {
   return (
     // Wide table scrolls inside its own container rather than the page body.
-    <div className="card overflow-x-auto border border-slate-200 bg-white shadow-sm">
+    <div className="card overflow-x-auto border border-hairline bg-white shadow-sm">
       <table className="w-full min-w-[56rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left bg-slate-50/80">
-            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-slate-600">
+          <tr className="border-b border-hairline text-left bg-sunken/80">
+            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-secondary">
               Case
             </th>
-            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-slate-600">
+            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-secondary">
               Client
             </th>
-            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-slate-600">
+            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-secondary">
               Court
             </th>
-            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-slate-600">
+            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-secondary">
               Team
             </th>
-            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-slate-600">
+            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-secondary">
               Filed
             </th>
-            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-slate-600">
+            <th scope="col" className="px-4 py-3 font-extrabold text-xs uppercase tracking-wider text-secondary">
               Status
             </th>
           </tr>
@@ -63,31 +63,31 @@ export function CaseTable({ cases }: { cases: CaseSummary[] }) {
           {cases.map((record) => (
             <tr
               key={record.id}
-              className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-colors duration-150"
+              className="border-b border-hairline last:border-0 hover:bg-sunken/70 transition-colors duration-150"
             >
               <td className="px-4 py-3.5">
                 <Link
                   href={`/cases/${record.id}`}
-                  className="font-bold text-base text-slate-900 hover:text-sky-700 transition-colors"
+                  className="font-bold text-base text-primary hover:text-accent-700 transition-colors"
                 >
                   {record.title}
                 </Link>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-slate-500">
+                  <span className="font-mono text-xs font-semibold text-muted">
                     {record.caseNumber}
                   </span>
                   <TypeBadge caseType={record.caseType} />
                 </div>
               </td>
-              <td className="px-4 py-3.5 font-bold text-slate-800">{record.clientName}</td>
+              <td className="px-4 py-3.5 font-bold text-primary">{record.clientName}</td>
               <td className="px-4 py-3.5">
-                <span className="font-bold text-slate-800">{record.court}</span>
-                <div className="text-xs font-medium text-slate-500">{record.jurisdiction}</div>
+                <span className="font-bold text-primary">{record.court}</span>
+                <div className="text-xs font-medium text-muted">{record.jurisdiction}</div>
               </td>
               <td className="px-4 py-3.5">
                 <TeamCell assignments={record.assignments} />
               </td>
-              <td className="px-4 py-3.5 whitespace-nowrap font-semibold text-slate-700">
+              <td className="px-4 py-3.5 whitespace-nowrap font-semibold text-secondary">
                 {formatDate(record.filedOn)}
               </td>
               <td className="px-4 py-3.5">

@@ -66,32 +66,38 @@ export const CASE_ROLE_ORDER: readonly CaseRole[] = [
  * Tailwind classes per status. Kept as complete literal strings because
  * Tailwind's scanner cannot resolve interpolated class names.
  */
+/** Shared chip shell for every case-status badge. */
+const CHIP = "border-hairline bg-raised text-secondary";
+
 export const CASE_STATUS_STYLES: Record<
   CaseStatus,
   { badge: string; dot: string; column: string }
 > = {
+  // The chip is deliberately uniform: the coloured dot carries the hue and
+  // the label carries the meaning, so status is never encoded by colour
+  // alone. Five tinted pills also read as a rainbow against off-white.
   FILED: {
-    badge: "bg-ink-100 text-ink-700 border-ink-200",
+    badge: CHIP,
     dot: "bg-status-filed",
     column: "border-t-status-filed",
   },
   UNDER_TRIAL: {
-    badge: "bg-brass-50 text-brass-800 border-brass-200",
+    badge: CHIP,
     dot: "bg-status-trial",
     column: "border-t-status-trial",
   },
   JUDGMENT: {
-    badge: "bg-purple-50 text-purple-800 border-purple-200",
+    badge: CHIP,
     dot: "bg-status-judgment",
     column: "border-t-status-judgment",
   },
   APPEAL: {
-    badge: "bg-orange-50 text-orange-800 border-orange-200",
+    badge: CHIP,
     dot: "bg-status-appeal",
     column: "border-t-status-appeal",
   },
   CLOSED: {
-    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    badge: CHIP,
     dot: "bg-status-closed",
     column: "border-t-status-closed",
   },

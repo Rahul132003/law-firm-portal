@@ -1,21 +1,55 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-
-import { ROLE_LABELS, canViewReports, isAdmin } from "@/lib/auth/roles";
-import { requireUser } from "@/lib/dal";
 import {
-  getDashboardData,
-  getOversightData,
-} from "@/lib/dashboard/queries";
+  BarChart3,
+  Briefcase,
+  CalendarClock,
+  CalendarDays,
+  ChevronRight,
+  CircleCheckBig,
+  Clock,
+  FileText,
+  FolderOpen,
+  Gavel,
+  ListTodo,
+  Megaphone,
+  Moon,
+  Sun,
+  Sunrise,
+  TriangleAlert,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+import { CasesByStatusChart } from "@/components/reports/charts";
+import { ROLE_LABELS, canViewReports } from "@/lib/auth/roles";
+import { requireUser } from "@/lib/dal";
+import { getDashboardData, getOversightData } from "@/lib/dashboard/queries";
 import { DOCUMENT_CATEGORY_LABELS } from "@/lib/documents/constants";
 import { FIRM_NAME } from "@/lib/firm";
-import { TASK_KIND_LABELS, isDeadline } from "@/lib/tasks/constants";
 import { serverNow } from "@/lib/time";
-import { CasesByStatusChart } from "@/components/reports/charts";
 
 export const metadata: Metadata = {
   title: `Dashboard · ${FIRM_NAME}`,
 };
+
+/**
+ * The dashboard answers one question first: what needs doing today.
+ *
+ * The layout reads as a briefing — the day's schedule takes the widest
+ * column, the reader's own workload and standing figures sit beside it as
+ * tinted tiles, and firm-wide oversight comes last because it informs rather
+ * than prompts. Anything overdue is pulled out of that order into a banner at
+ * the top, since a late filing outranks everything else on the page.
+ *
+ * Colour here is a wayfinding device, not an encoding: a card and its tiles
+ * share one tone so the eye can return to the same block. The one place
+ * colour carries meaning is the schedule, where proximity (today / tomorrow /
+ * later) drives the dot and the badge — and both are labelled, so the meaning
+ * never rests on hue alone.
+ */
+
+const DAY_MS = 86_400_000;
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
@@ -27,105 +61,205 @@ const shortFmt = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "short",
 });
-const timeFmt = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  day: "2-digit",
-  month: "short",
+const clockFmt = new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
   minute: "2-digit",
 });
+const weekdayFmt = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+});
 
 function daysBetween(target: Date, now: Date): number {
-  return Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
+  return Math.ceil((target.getTime() - now.getTime()) / DAY_MS);
 }
 
-function relativeDay(date: Date, now: Date): string {
-  const days = daysBetween(date, now);
-  if (days <= 0) return "Today";
-  if (days === 1) return "Tomorrow";
-  if (days <= 7) return `In ${days} days`;
-  return shortFmt.format(date);
+/* ── Tone system ──────────────────────────────────────────────────────────
+   Complete literal class strings: Tailwind's scanner cannot resolve an
+   interpolated class name, so every variant is written out in full. `head`
+   tints a card's icon badge; `tile`/`chip`/`value` dress a stat tile.
+   ------------------------------------------------------------------------ */
+type Tone = "green" | "blue" | "purple" | "amber" | "teal" | "rose";
+
+const TONES: Record<
+  Tone,
+  { head: string; tile: string; chip: string; value: string }
+> = {
+  green: {
+    head: "bg-accent-50 text-accent-700",
+    tile: "border-accent-100 bg-accent-50/70",
+    chip: "bg-raised text-accent-700",
+    value: "text-accent-800",
+  },
+  blue: {
+    head: "bg-status-filed/10 text-status-filed",
+    tile: "border-status-filed/20 bg-status-filed/10",
+    chip: "bg-raised text-status-filed",
+    value: "text-status-filed",
+  },
+  purple: {
+    head: "bg-status-judgment/10 text-status-judgment",
+    tile: "border-status-judgment/20 bg-status-judgment/10",
+    chip: "bg-raised text-status-judgment",
+    value: "text-status-judgment",
+  },
+  amber: {
+    head: "bg-warning-soft text-warning",
+    tile: "border-warning/25 bg-warning-soft",
+    chip: "bg-raised text-warning",
+    value: "text-warning",
+  },
+  teal: {
+    head: "bg-success-soft text-success",
+    tile: "border-success/25 bg-success-soft",
+    chip: "bg-raised text-success",
+    value: "text-success",
+  },
+  rose: {
+    head: "bg-danger-soft text-danger",
+    tile: "border-danger/25 bg-danger-soft",
+    chip: "bg-raised text-danger",
+    value: "text-danger",
+  },
+};
+
+/** Derived from the hour, not hardcoded. */
+function greeting(now: Date): { text: string; icon: LucideIcon; tone: Tone } {
+  const hour = now.getHours();
+  if (hour < 12) return { text: "Good morning", icon: Sunrise, tone: "amber" };
+  if (hour < 17) return { text: "Good afternoon", icon: Sun, tone: "amber" };
+  return { text: "Good evening", icon: Moon, tone: "purple" };
 }
 
-function Stat({
-  label,
-  value,
-  href,
-  urgent = false,
-  icon,
-  iconBg,
-}: {
-  label: string;
-  value: number;
-  href: string;
-  urgent?: boolean;
-  icon: string;
-  iconBg: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="card card-interactive px-5 py-5 flex items-start justify-between border border-slate-200/90 bg-white shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all rounded-2xl"
-    >
-      <div className="flex flex-col">
-        <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-          {label}
-        </span>
-        <span
-          className={`mt-2 block text-4xl font-black tracking-tight ${
-            urgent && value > 0 ? "text-rose-600" : "text-slate-900"
-          }`}
-        >
-          {value}
-        </span>
-        <span className="mt-2 flex items-center gap-1 text-[11px] font-bold text-emerald-600">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-emerald-500">
-            <path d="M6 2.5L9.5 6.5H2.5L6 2.5Z" fill="currentColor" />
-          </svg>
-          This month
-        </span>
-      </div>
-      <span className={`grid size-11 place-items-center rounded-2xl text-xl shadow-sm ${iconBg}`}>
-        {icon}
-      </span>
-    </Link>
-  );
-}
+/** Proximity styling for the schedule. Always paired with a text label. */
+const WHEN_STYLES = {
+  today: {
+    dot: "bg-warning",
+    badge: "border-warning/30 bg-warning-soft text-warning",
+  },
+  tomorrow: {
+    dot: "bg-status-filed",
+    badge: "border-status-filed/25 bg-status-filed/10 text-status-filed",
+  },
+  later: {
+    dot: "bg-status-judgment",
+    badge: "border-hairline bg-sunken text-secondary",
+  },
+} as const;
 
 function Card({
+  icon: Icon,
+  tone,
   title,
+  subtitle,
   action,
-  icon,
   children,
+  className = "",
 }: {
+  icon: LucideIcon;
+  tone: Tone;
   title: string;
+  subtitle?: string;
   action?: { href: string; label: string };
-  icon?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="card p-6 md:p-7 border border-slate-200/90 bg-white shadow-sm rounded-2xl">
-      <div className="flex items-center justify-between gap-3 pb-4">
-        <div className="flex items-center gap-3">
-          {icon && (
-            <span className="grid size-9 place-items-center rounded-xl bg-emerald-100 text-lg">
-              {icon}
-            </span>
-          )}
-          <h2 className="text-lg font-black tracking-tight text-slate-900">{title}</h2>
+    <section
+      className={`rounded-2xl border border-hairline bg-raised p-5 ${className}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className={`grid size-10 shrink-0 place-items-center rounded-xl ${TONES[tone].head}`}
+          >
+            <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate font-sans text-[15px] font-semibold text-primary">
+              {title}
+            </h2>
+            {subtitle ? (
+              <p className="truncate text-xs text-muted">{subtitle}</p>
+            ) : null}
+          </div>
         </div>
+
         {action ? (
           <Link
             href={action.href}
-            className="shrink-0 flex items-center gap-1 text-sm font-bold text-sky-700 hover:text-sky-800 transition-colors"
+            className="group inline-flex shrink-0 items-center gap-0.5 pt-1 text-xs font-semibold text-accent-700 transition-colors hover:text-accent-900"
           >
             {action.label}
-            <span className="text-xs">↗</span>
+            <ChevronRight
+              className="size-3.5 transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
           </Link>
         ) : null}
       </div>
-      <div className="mt-2">{children}</div>
+
+      <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+/** Icon, label, figure. The whole tile is the hit target when it links. */
+function StatTile({
+  icon: Icon,
+  tone,
+  label,
+  value,
+  href,
+}: {
+  icon: LucideIcon;
+  tone: Tone;
+  label: string;
+  value: number;
+  href?: string;
+}) {
+  const t = TONES[tone];
+
+  const inner = (
+    <>
+      <span
+        className={`grid size-9 shrink-0 place-items-center rounded-lg border border-hairline/50 ${t.chip}`}
+      >
+        <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-secondary">
+          {label}
+        </span>
+        <span
+          className={`block font-serif text-2xl font-bold leading-tight tabular-nums ${t.value}`}
+        >
+          {value}
+        </span>
+      </span>
+    </>
+  );
+
+  const shell = `flex items-center gap-3 rounded-xl border p-3.5 ${t.tile}`;
+
+  return href ? (
+    <Link
+      href={href}
+      className={`${shell} transition-colors hover:border-hairline-strong`}
+    >
+      {inner}
+    </Link>
+  ) : (
+    <div className={shell}>{inner}</div>
+  );
+}
+
+function Blank({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-xl border border-dashed border-hairline px-4 py-9 text-center text-sm text-muted">
+      {children}
+    </p>
   );
 }
 
@@ -138,331 +272,341 @@ export default async function DashboardPage() {
     getOversightData(user, now),
   ]);
 
-  const firstName = user.name.split(" ")[0];
-  const dateFmt = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const firstName = user.name.split(" ")[0] ?? user.name;
+  const hello = greeting(now);
+  const HelloIcon = hello.icon;
+
+  // ── The one line that says whether today needs anything ───────────────
+  const prompts: string[] = [];
+  if (data.myOverdue > 0) {
+    prompts.push(
+      `${data.myOverdue} overdue task${data.myOverdue === 1 ? "" : "s"}`,
+    );
+  }
+  if (data.hearingsSoon > 0) {
+    prompts.push(
+      `${data.hearingsSoon} hearing${data.hearingsSoon === 1 ? "" : "s"} today or tomorrow`,
+    );
+  }
+  if (data.unreadNotices > 0) {
+    prompts.push(
+      `${data.unreadNotices} notice${data.unreadNotices === 1 ? "" : "s"} to acknowledge`,
+    );
+  }
+
+  const scopeNote = oversight
+    ? oversight.isFirmWide
+      ? "firm-wide view"
+      : "your matters and your team's"
+    : "matters you are assigned to";
 
   return (
-    <div className="mx-auto max-w-[1400px]">
-      {/* ═══ Hero Welcome Banner (teal gradient, matching reference portal) ═══ */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-800 via-teal-700 to-teal-600 px-8 py-8 md:px-10 md:py-10 mb-7 shadow-lg">
-        {/* Decorative background dots/pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1.5" fill="white" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#dots)" />
-          </svg>
-        </div>
-
-        {/* Decorative circles */}
-        <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-teal-500/30 blur-2xl" />
-        <div className="absolute right-20 bottom-0 h-32 w-32 translate-y-10 rounded-full bg-emerald-400/20 blur-2xl" />
-
-        <div className="relative z-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm px-3.5 py-1.5 text-xs font-bold text-white border border-white/20">
-            📅 {dateFmt.format(now).toUpperCase()}
-          </span>
-
-          <h1 className="mt-4 text-3xl md:text-4xl font-black text-white leading-tight">
-            Welcome back, {firstName}.
+    <div className="space-y-5">
+      {/* ── Greeting ────────────────────────────────────────────────── */}
+      {/* The date now lives in the top bar, so this header carries only the
+          greeting and what the reader's role means for the page below it. */}
+      <header className="flex items-center gap-4">
+        <span
+          className={`grid size-12 shrink-0 place-items-center rounded-2xl ${TONES[hello.tone].head}`}
+        >
+          <HelloIcon className="size-6" strokeWidth={1.75} aria-hidden="true" />
+        </span>
+        <div>
+          <h1 className="text-[26px] leading-tight">
+            {hello.text}, {firstName}
           </h1>
-          <p className="mt-2 max-w-xl text-base font-medium text-teal-100/90 leading-relaxed">
-            Overview of today&apos;s legal cases, upcoming hearings, and team activity across all managed matters.
+          <p className="mt-0.5 text-sm text-muted">
+            {ROLE_LABELS[user.role]} · {scopeNote}
           </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-4 py-1.5 text-xs font-black text-white shadow-sm">
-              🏛️ {ROLE_LABELS[user.role].toUpperCase()}
-            </span>
-            {oversight ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-1.5 text-xs font-bold text-white">
-                <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                {oversight.isFirmWide
-                  ? `${oversight.openCases} ACTIVE MATTERS`
-                  : `${oversight.openCases} TEAM MATTERS`}
-              </span>
-            ) : null}
-          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ═══ Stat Cards Row ═══ */}
-      <div className="mb-7 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Stat
-          label="Total Cases"
-          value={data.myCases}
-          href="/cases"
-          icon="📁"
-          iconBg="bg-sky-100 text-sky-600"
-        />
-        <Stat
-          label="Open Tasks"
-          value={data.myOpenTasks}
-          href="/tasks"
-          icon="📋"
-          iconBg="bg-amber-100 text-amber-600"
-        />
-        <Stat
-          label="Completed"
-          value={data.casesByStatus.find((s) => s.label === "Closed")?.count ?? 0}
-          href="/cases?status=CLOSED"
-          icon="✅"
-          iconBg="bg-rose-100 text-rose-600"
-        />
-        <Stat
-          label="Hearings Soon"
-          value={data.hearingsSoon}
-          href="/diary"
-          icon="⏰"
-          iconBg="bg-emerald-100 text-emerald-600"
-        />
-        <Stat
-          label="Overdue"
-          value={data.myOverdue}
-          href="/tasks?due=overdue"
-          urgent
-          icon="📅"
-          iconBg="bg-purple-100 text-purple-600"
-        />
-      </div>
+      {prompts.length > 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3">
+          <TriangleAlert
+            className="size-5 shrink-0 text-warning"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1 text-sm text-primary">
+            <span className="font-semibold">Needs attention today:</span>{" "}
+            {prompts.join(" · ")}
+          </p>
+        </div>
+      ) : null}
 
-      {/* ═══ Two-column bottom layout ═══ */}
-      <div className="grid gap-7 lg:grid-cols-2">
-        {/* Left: Hearings + Tasks */}
-        <div className="space-y-7">
-          <Card
-            title="Next Hearings"
-            action={{ href: "/diary", label: "Court diary" }}
-            icon="📆"
-          >
-            {data.upcomingHearings.length === 0 ? (
-              <div className="flex flex-col items-center py-10 text-center">
-                <span className="text-4xl mb-3">📭</span>
-                <p className="text-base font-bold text-slate-500">Nothing scheduled.</p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {data.upcomingHearings.map((hearing) => {
-                  const imminent = daysBetween(hearing.date, now) <= 1;
-                  return (
-                    <li key={hearing.id}>
-                      <Link
-                        href={`/cases/${hearing.caseId}/hearings`}
-                        className={`block rounded-2xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-md ${
-                          imminent
-                            ? "border-amber-300 bg-amber-50/80"
-                            : "border-slate-200 bg-slate-50/70 hover:bg-white"
-                        }`}
-                      >
-                        <span
-                          className={`block text-xs font-black uppercase tracking-wider ${
-                            imminent ? "text-amber-800" : "text-slate-500"
-                          }`}
-                        >
-                          {relativeDay(hearing.date, now)}
-                        </span>
-                        <span className="mt-1 block truncate text-base font-extrabold text-slate-900">
+      {/* ── Schedule + the reader's own numbers ─────────────────────── */}
+      <div className="grid gap-5 xl:grid-cols-[1.15fr_1fr]">
+        <Card
+          icon={CalendarDays}
+          tone="green"
+          title="Today's Schedule"
+          subtitle={dayFmt.format(now)}
+          action={{ href: "/diary", label: "View all" }}
+        >
+          {data.upcomingHearings.length === 0 ? (
+            <Blank>
+              No hearings scheduled. The court diary holds the full calendar.
+            </Blank>
+          ) : (
+            <ul className="divide-y divide-hairline">
+              {data.upcomingHearings.map((hearing) => {
+                const days = daysBetween(hearing.date, now);
+                const when =
+                  days <= 0 ? "today" : days === 1 ? "tomorrow" : "later";
+                const style = WHEN_STYLES[when];
+
+                return (
+                  <li key={hearing.id} className="py-3 first:pt-0 last:pb-0">
+                    <Link
+                      href={`/cases/${hearing.caseId}/hearings`}
+                      className="group flex items-start gap-3"
+                    >
+                      <span
+                        className={`mt-1.5 size-2 shrink-0 rounded-full ${style.dot}`}
+                        aria-hidden="true"
+                      />
+                      <span className="w-14 shrink-0 pt-px font-mono text-xs tabular-nums text-secondary">
+                        {clockFmt.format(hearing.date)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-primary group-hover:underline">
                           {hearing.case.title}
                         </span>
-                        <span className="block truncate text-sm font-bold text-slate-700 mt-0.5">
-                          {timeFmt.format(hearing.date)} · {hearing.court}
-                        </span>
-                        <span className="mt-1 block truncate text-sm text-slate-600 font-medium">
+                        <span className="block truncate text-xs text-muted">
+                          <span className="font-mono">
+                            {hearing.case.caseNumber}
+                          </span>
+                          {" · "}
+                          {hearing.court}
+                          {" · "}
                           {hearing.purpose}
                         </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-
-          <Card title="Your Tasks" action={{ href: "/tasks", label: "All tasks" }} icon="✏️">
-            {data.myTasks.length === 0 ? (
-              <div className="flex flex-col items-center py-10 text-center">
-                <span className="text-4xl mb-3">🎉</span>
-                <p className="text-base font-bold text-slate-500">Nothing outstanding.</p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {data.myTasks.map((task) => {
-                  const overdue = task.dueDate.getTime() < now.getTime();
-                  return (
-                    <li
-                      key={task.id}
-                      className="border-b border-slate-100 pb-3.5 last:border-0 last:pb-0"
-                    >
-                      <p className="text-base font-extrabold text-slate-900">{task.description}</p>
-                      <p className="mt-1 text-sm font-semibold">
-                        <span
-                          className={
-                            overdue
-                              ? "font-black text-rose-600"
-                              : "font-extrabold text-sky-700"
-                          }
-                        >
-                          {overdue ? "Overdue" : "Due"}{" "}
-                          {shortFmt.format(task.dueDate)}
-                        </span>
-                        {isDeadline(task.kind) ? (
-                          <span className="text-slate-600 font-medium">
-                            {" · "}
-                            {TASK_KIND_LABELS[task.kind]}
-                          </span>
-                        ) : null}
-                        {task.case ? (
-                          <span className="text-slate-600 font-medium">
-                            {" · "}
-                            {task.case.caseNumber}
-                          </span>
-                        ) : null}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-        </div>
-
-        {/* Right: Recent Reports + Overview */}
-        <div className="space-y-7">
-          <Card
-            title="Recent Reports"
-            action={{ href: "/documents", label: "View all" }}
-            icon="📄"
-          >
-            {data.recentDocuments.length === 0 ? (
-              <div className="flex flex-col items-center py-10 text-center">
-                <span className="text-4xl mb-3">📭</span>
-                <p className="text-base font-bold text-slate-500">Nothing filed yet.</p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {data.recentDocuments.map((doc) => (
-                  <li
-                    key={doc.id}
-                    className="border-b border-slate-100 pb-3.5 last:border-0 last:pb-0"
-                  >
-                    <Link
-                      href={`/cases/${doc.caseId}/documents`}
-                      className="block hover:bg-slate-50 rounded-xl p-2 -m-2 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-base font-extrabold text-slate-900">
-                            {doc.uploadedBy.name}
-                          </p>
-                          <p className="mt-0.5 text-sm font-medium text-slate-600 line-clamp-2">
-                            {doc.title}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-xs font-bold text-slate-400 whitespace-nowrap">
-                          {shortFmt.format(doc.uploadedAt)}
-                        </span>
-                      </div>
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${style.badge}`}
+                      >
+                        {when === "today"
+                          ? "Today"
+                          : when === "tomorrow"
+                            ? "Tomorrow"
+                            : weekdayFmt.format(hearing.date)}
+                      </span>
                     </Link>
                   </li>
-                ))}
-              </ul>
-            )}
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        <div className="space-y-5">
+          <Card
+            icon={Briefcase}
+            tone="green"
+            title="Your Work"
+            subtitle="Track your daily tasks and progress"
+            action={{ href: "/tasks", label: "View all" }}
+          >
+            <div className="grid gap-3 sm:grid-cols-3">
+              <StatTile
+                icon={ListTodo}
+                tone="green"
+                label="To do"
+                value={data.myTasksByStatus.TODO}
+                href="/tasks"
+              />
+              <StatTile
+                icon={Clock}
+                tone="blue"
+                label="In progress"
+                value={data.myTasksByStatus.IN_PROGRESS}
+                href="/tasks"
+              />
+              <StatTile
+                icon={CircleCheckBig}
+                tone="purple"
+                label="Completed"
+                value={data.myTasksByStatus.DONE}
+                href="/tasks"
+              />
+            </div>
+
+            {/* Grows only when something is actually late. */}
+            {data.myOverdue > 0 ? (
+              <Link
+                href="/tasks?due=overdue"
+                className="mt-3 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger-soft px-3.5 py-2.5 text-xs font-medium text-danger transition-colors hover:border-danger/50"
+              >
+                <TriangleAlert
+                  className="size-4 shrink-0"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1">
+                  {data.myOverdue} task{data.myOverdue === 1 ? "" : "s"} past
+                  the due date
+                </span>
+                <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+              </Link>
+            ) : null}
           </Card>
 
-          <Card title="Cases Overview" action={{ href: "/cases", label: "View all" }} icon="📊">
-            <CasesByStatusChart data={data.casesByStatus} />
+          <Card icon={BarChart3} tone="blue" title="At a glance">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <StatTile
+                icon={FolderOpen}
+                tone="green"
+                label="Open matters"
+                value={data.myCases}
+                href="/cases"
+              />
+              <StatTile
+                icon={Gavel}
+                tone="blue"
+                label="Hearings soon"
+                value={data.hearingsSoon}
+                href="/diary"
+              />
+              <StatTile
+                icon={CalendarClock}
+                tone="purple"
+                label="Due this week"
+                value={data.myDueThisWeek}
+                href="/tasks"
+              />
+              <StatTile
+                icon={Megaphone}
+                tone="amber"
+                label="Notices to read"
+                value={data.unreadNotices}
+                href="/notices"
+              />
+            </div>
           </Card>
-
-          {oversight ? (
-            <Card
-              title={oversight.isFirmWide ? "Firm Overview" : "Your Team"}
-              action={{ href: "/reports", label: "Full reports" }}
-              icon="🏢"
-            >
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                  <span className="block text-3xl font-black text-slate-900">
-                    {oversight.openCases}
-                  </span>
-                  <span className="text-sm font-bold text-slate-600">Open matters</span>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                  <span className="block text-3xl font-black text-slate-900">
-                    {oversight.hearingsThisWeek}
-                  </span>
-                  <span className="text-sm font-bold text-slate-600">Hearings this week</span>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                  <span
-                    className={`block text-3xl font-black ${
-                      oversight.overdueAcrossScope > 0
-                        ? "text-rose-600"
-                        : "text-slate-900"
-                    }`}
-                  >
-                    {oversight.overdueAcrossScope}
-                  </span>
-                  <span className="text-sm font-bold text-slate-600">
-                    {oversight.isFirmWide ? "Overdue (firm)" : "Overdue (team)"}
-                  </span>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                  <span
-                    className={`block text-3xl font-black ${
-                      oversight.unassignedCases > 0
-                        ? "text-amber-700"
-                        : "text-slate-900"
-                    }`}
-                  >
-                    {oversight.unassignedCases}
-                  </span>
-                  <span className="text-sm font-bold text-slate-600">Unassigned</span>
-                </div>
-              </div>
-
-              {oversight.unassignedCases > 0 ? (
-                <p className="mt-5 text-sm font-bold text-amber-900 bg-amber-50 rounded-2xl p-4 border border-amber-200">
-                  Unassigned matters are invisible to everyone except partners —
-                  worth assigning someone.
-                </p>
-              ) : null}
-            </Card>
-          ) : null}
         </div>
       </div>
 
-      {/* ═══ Quick links ═══ */}
-      <nav className="mt-7 flex flex-wrap gap-3" aria-label="Quick links">
-        {[
-          { href: "/cases", label: "Cases" },
-          { href: "/documents", label: "Documents" },
-          { href: "/diary", label: "Court diary" },
-          { href: "/tasks", label: "Tasks" },
-          { href: "/notices", label: "Notice board" },
-          ...(canViewReports(user.role)
-            ? [{ href: "/reports", label: "Reports" }]
-            : []),
-          ...(isAdmin(user.role)
-            ? [{ href: "/admin", label: "Administration" }]
-            : []),
-          { href: "/settings", label: "Your account" },
-        ].map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 hover:border-sky-400/50 hover:bg-sky-50 hover:text-sky-700 transition-all shadow-sm"
+      {/* ── Oversight + case mix ────────────────────────────────────── */}
+      <div
+        className={`grid gap-5 ${oversight ? "xl:grid-cols-[1fr_1.5fr]" : ""}`}
+      >
+        {oversight ? (
+          <Card
+            icon={Users}
+            tone="teal"
+            title={
+              oversight.isFirmWide ? "Across the Firm" : "Across Your Team"
+            }
+            subtitle={
+              oversight.isFirmWide
+                ? "Every matter on the books"
+                : "You and everyone reporting to you"
+            }
           >
-            {link.label}
-          </Link>
-        ))}
-      </nav>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <StatTile
+                icon={FolderOpen}
+                tone="green"
+                label="Open matters"
+                value={oversight.openCases}
+                href="/cases"
+              />
+              <StatTile
+                icon={CalendarDays}
+                tone="blue"
+                label="Hearings this week"
+                value={oversight.hearingsThisWeek}
+                href="/diary"
+              />
+              <StatTile
+                icon={TriangleAlert}
+                tone={oversight.overdueAcrossScope > 0 ? "rose" : "purple"}
+                label="Overdue tasks"
+                value={oversight.overdueAcrossScope}
+                href="/tasks"
+              />
+              <StatTile
+                icon={Briefcase}
+                tone={oversight.unassignedCases > 0 ? "amber" : "teal"}
+                label="Unassigned"
+                value={oversight.unassignedCases}
+                href="/cases"
+              />
+            </div>
+
+            {oversight.unassignedCases > 0 ? (
+              <p className="mt-3 text-xs leading-relaxed text-secondary">
+                Unassigned matters are invisible to everyone except partners —
+                worth putting someone on them.
+              </p>
+            ) : null}
+          </Card>
+        ) : null}
+
+        <Card
+          icon={BarChart3}
+          tone="purple"
+          title="Matters by Status"
+          subtitle="Where the caseload sits in the lifecycle"
+          action={
+            canViewReports(user.role)
+              ? { href: "/reports", label: "View report" }
+              : undefined
+          }
+        >
+          <CasesByStatusChart
+            data={data.casesByStatus}
+            showValues
+            height={232}
+          />
+        </Card>
+      </div>
+
+      {/* ── Recent filing activity ──────────────────────────────────── */}
+      <Card
+        icon={FileText}
+        tone="amber"
+        title="Recently Filed"
+        subtitle="The latest documents added to your matters"
+        action={{ href: "/documents", label: "View all" }}
+      >
+        {data.recentDocuments.length === 0 ? (
+          <Blank>Nothing filed yet.</Blank>
+        ) : (
+          <ul className="divide-y divide-hairline">
+            {data.recentDocuments.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-hairline/50 bg-sunken text-secondary">
+                  <FileText
+                    className="size-[18px]"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                </span>
+                <Link
+                  href={`/cases/${doc.caseId}/documents`}
+                  className="min-w-0 flex-1 truncate text-sm font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  {doc.title}
+                </Link>
+                <span className="shrink-0 text-xs text-muted">
+                  {DOCUMENT_CATEGORY_LABELS[doc.category]}
+                  {" · "}
+                  <span className="font-mono">{doc.case.caseNumber}</span>
+                  {" · "}
+                  {doc.uploadedBy.name}
+                  {" · "}
+                  {shortFmt.format(doc.uploadedAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

@@ -109,6 +109,10 @@ export const ROLE_RESTRICTED_PREFIXES: ReadonlyArray<{
   prefix: string;
   allow: (role: Role) => boolean;
 }> = [
+  // `/settings` itself is open to everyone; only these two branches of it
+  // are partner-only, so they are listed individually rather than by prefix.
+  { prefix: "/settings/team", allow: isAdmin },
+  { prefix: "/settings/firm", allow: isAdmin },
   { prefix: "/admin", allow: isAdmin },
   { prefix: "/reports", allow: canViewReports },
 ];

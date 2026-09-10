@@ -23,13 +23,22 @@ export type DocumentRow = {
   caseRef?: { id: string; caseNumber: string; title: string };
 };
 
+/**
+ * Category chips are set as small-caps labels rather than seven coloured
+ * pills. Seven tints would read as a rainbow against the off-white canvas, and the
+ * category name is already unambiguous on its own — colour was adding
+ * decoration, not information.
+ *
+ * The two categories that change what someone does next — a court Order and
+ * a Judgment — keep a quiet accent so they can be spotted while scanning.
+ */
 const CATEGORY_TINT: Record<DocumentCategory, string> = {
-  PETITION: "bg-ink-100 text-ink-700",
-  REPLY: "bg-brass-50 text-brass-800",
-  EVIDENCE: "bg-purple-50 text-purple-800",
-  ORDER: "bg-orange-50 text-orange-800",
-  JUDGMENT: "bg-emerald-50 text-emerald-800",
-  CORRESPONDENCE: "bg-sky-50 text-sky-800",
+  PETITION: "bg-sunken text-secondary",
+  REPLY: "bg-sunken text-secondary",
+  EVIDENCE: "bg-sunken text-secondary",
+  ORDER: "bg-accent-50 text-accent-800",
+  JUDGMENT: "bg-accent-50 text-accent-800",
+  CORRESPONDENCE: "bg-sunken text-secondary",
   OTHER: "bg-sunken text-secondary",
 };
 
@@ -88,7 +97,7 @@ export function DocumentList({
                 {" "}
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${CATEGORY_TINT[doc.category]}`}
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${CATEGORY_TINT[doc.category]}`}
                   >
                     {DOCUMENT_CATEGORY_LABELS[doc.category]}
                   </span>
@@ -197,7 +206,7 @@ export function DocumentList({
                             }
                           })
                         }
-                        className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold text-red-800"
+                        className="rounded-md border border-danger/30 px-2 py-1 text-xs font-medium text-danger"
                       >
                         Confirm
                       </button>
@@ -213,7 +222,7 @@ export function DocumentList({
                     <button
                       type="button"
                       onClick={() => setConfirming(doc.id)}
-                      className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:border-red-300 hover:text-red-700"
+                      className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:border-danger/40 hover:text-danger"
                     >
                       Delete
                     </button>

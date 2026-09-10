@@ -1,7 +1,12 @@
 import "server-only";
 
+import type { TaskStatus } from "@/generated/prisma/enums";
 import { canViewReports, isAdmin } from "@/lib/auth/roles";
-import { caseScopeFilter, getVisibleUserIds, type SessionUser } from "@/lib/dal";
+import {
+  caseScopeFilter,
+  getVisibleUserIds,
+  type SessionUser,
+} from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -38,6 +43,7 @@ export async function getDashboardData(user: SessionUser, now: Date) {
     recentDocuments,
     myTasks,
     casesByStatusRaw,
+    myTasksByStatusRaw,
   ] = await Promise.all([
     prisma.task.count({
       where: { assignedToId: user.id, status: { not: "DONE" } },
@@ -108,6 +114,14 @@ export async function getDashboardData(user: SessionUser, now: Date) {
       where: scope,
       _count: { _all: true },
     }),
+    // Deliberately unfiltered by status: the dashboard's work card reports
+    // done alongside outstanding, and `myOpenTasks` above already excludes
+    // DONE, so counting it here would need a second round trip.
+    prisma.task.groupBy({
+      by: ["status"],
+      where: { assignedToId: user.id },
+      _count: { _all: true },
+    }),
   ]);
 
   const STATUS_LABELS: Record<string, string> = {
@@ -127,8 +141,20 @@ export async function getDashboardData(user: SessionUser, now: Date) {
   casesByStatus.sort(
     (a, b) =>
       Object.values(STATUS_LABELS).indexOf(a.label) -
-      Object.values(STATUS_LABELS).indexOf(b.label)
+      Object.values(STATUS_LABELS).indexOf(b.label),
   );
+
+  // Seeded with every status so the card renders a real zero rather than a
+  // gap for a status nobody currently has.
+  const myTasksByStatus: Record<TaskStatus, number> = {
+    TODO: 0,
+    IN_PROGRESS: 0,
+    BLOCKED: 0,
+    DONE: 0,
+  };
+  for (const row of myTasksByStatusRaw) {
+    myTasksByStatus[row.status] = row._count._all;
+  }
 
   return {
     myOpenTasks,
@@ -141,6 +167,7 @@ export async function getDashboardData(user: SessionUser, now: Date) {
     recentDocuments,
     myTasks,
     casesByStatus,
+    myTasksByStatus,
   };
 }
 
@@ -168,15 +195,17 @@ export async function getOversightData(user: SessionUser, now: Date) {
         where: {
           status: { not: "DONE" },
           dueDate: { lt: now },
-          ...(isAdmin(user.role)
-            ? {}
-            : { assignedToId: { in: teamIds } }),
+          ...(isAdmin(user.role) ? {} : { assignedToId: { in: teamIds } }),
         },
       }),
       // A case with nobody on it is invisible to every non-admin, so it is
       // worth surfacing to the people who can fix it.
       prisma.case.count({
-        where: { ...scope, status: { not: "CLOSED" }, assignments: { none: {} } },
+        where: {
+          ...scope,
+          status: { not: "CLOSED" },
+          assignments: { none: {} },
+        },
       }),
     ]);
 

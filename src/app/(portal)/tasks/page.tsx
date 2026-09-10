@@ -114,7 +114,7 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
               aria-current={!showAll ? "page" : undefined}
               className={
                 !showAll
-                  ? "rounded-md bg-ink-900 px-3 py-1 text-xs font-medium text-white"
+                  ? "rounded-md bg-primary px-3 py-1 text-xs font-medium text-white"
                   : "rounded-md px-3 py-1 text-xs font-medium text-secondary hover:text-primary"
               }
             >
@@ -125,7 +125,7 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
               aria-current={showAll ? "page" : undefined}
               className={
                 showAll
-                  ? "rounded-md bg-ink-900 px-3 py-1 text-xs font-medium text-white"
+                  ? "rounded-md bg-primary px-3 py-1 text-xs font-medium text-white"
                   : "rounded-md px-3 py-1 text-xs font-medium text-secondary hover:text-primary"
               }
             >
@@ -140,13 +140,13 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
         <Tile
           label="Overdue"
           value={counts.overdue}
-          tone={counts.overdue > 0 ? "text-red-700" : ""}
+          tone={counts.overdue > 0 ? "text-danger" : ""}
           href="/tasks?due=overdue"
         />
         <Tile
           label="Due in 7 days"
           value={counts.dueSoon}
-          tone={counts.dueSoon > 0 ? "text-orange-700" : ""}
+          tone={counts.dueSoon > 0 ? "text-warning" : ""}
           href="/tasks"
         />
         <Tile

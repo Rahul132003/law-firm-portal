@@ -46,15 +46,15 @@ function dueLabel(dueDate: Date, nowMs: number, status: TaskStatus) {
   if (days < 0) {
     return {
       text: `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}`,
-      tone: "text-red-700 font-medium",
+      tone: "text-danger font-medium",
     };
   }
   if (days === 0)
-    return { text: "Due today", tone: "text-red-700 font-medium" };
+    return { text: "Due today", tone: "text-danger font-medium" };
   if (days === 1)
-    return { text: "Due tomorrow", tone: "text-orange-700 font-medium" };
+    return { text: "Due tomorrow", tone: "text-warning font-medium" };
   if (days <= 7)
-    return { text: `Due in ${days} days`, tone: "text-orange-700" };
+    return { text: `Due in ${days} days`, tone: "text-warning" };
   return { text: `Due ${formatDate(dueDate)}`, tone: "text-secondary" };
 }
 
@@ -99,7 +99,7 @@ export function TaskList({
       {error ? (
         <p
           role="alert"
-          className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -247,7 +247,7 @@ export function TaskList({
                               }
                             })
                           }
-                          className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold text-red-800"
+                          className="rounded-md border border-danger/30 px-2 py-1 text-xs font-semibold text-danger"
                         >
                           Confirm
                         </button>
@@ -263,7 +263,7 @@ export function TaskList({
                       <button
                         type="button"
                         onClick={() => setConfirming(task.id)}
-                        className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:border-red-300 hover:text-red-700"
+                        className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:border-danger/30 hover:text-danger"
                       >
                         Delete
                       </button>

@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { User, ShieldCheck, Key, Lock, ArrowRight, CheckCircle2, ShieldAlert } from "lucide-react";
+import { ArrowRight, User, UserPlus } from "lucide-react";
 
-import { ChangePasswordForm } from "@/components/account/change-password-form";
-import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/auth/roles";
+import {
+  canManageUsers,
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+} from "@/lib/auth/roles";
 import { requireUser } from "@/lib/dal";
 import { FIRM_NAME } from "@/lib/firm";
 
@@ -11,99 +14,104 @@ export const metadata: Metadata = {
   title: `Account Settings · ${FIRM_NAME}`,
 };
 
-export default async function SettingsPage() {
+export default async function SettingsAccountPage() {
   const user = await requireUser();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-            Account & Security Settings
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage your credentials, password, and view role capabilities for {FIRM_NAME}.
-          </p>
-        </div>
-
-        <Link
-          href="/profile"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 px-4 py-2.5 text-xs font-bold text-sky-700 border border-sky-200 shadow-xs hover:bg-sky-100 transition-all self-start sm:self-auto"
-        >
-          <User className="h-4 w-4" />
-          <span>View Advocate Profile</span>
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </header>
-
-      {/* Profile Overview Card */}
+    <div className="space-y-6">
       <section className="surface-card p-6 md:p-8">
-        <div className="flex items-center gap-3 pb-4 mb-5 border-b border-slate-100">
-          <div className="p-2 rounded-xl bg-sky-50 text-sky-700">
-            <User className="h-5 w-5" />
+        <div className="mb-5 flex items-center justify-between gap-3 border-b border-hairline pb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-accent-50 p-2 text-accent-700">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-serif text-base font-bold text-primary">
+                Advocate Identity
+              </h2>
+              <p className="text-xs text-muted">
+                Official registered name and system access level.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-serif text-base font-bold text-slate-900">Advocate Identity</h2>
-            <p className="text-xs text-slate-500">Official registered name and system access level.</p>
-          </div>
+
+          <Link
+            href="/profile"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-bold text-accent-700 shadow-xs transition-all hover:bg-accent-50"
+          >
+            <span className="hidden sm:inline">View Advocate Profile</span>
+            <span className="sm:hidden">Profile</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
         <dl className="grid gap-5 sm:grid-cols-2">
-          <div className="rounded-xl bg-slate-50/60 p-4 border border-slate-200/60">
-            <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="rounded-xl border border-hairline/60 bg-sunken/60 p-4">
+            <dt className="text-xs font-bold uppercase tracking-wider text-muted">
               Full Legal Name
             </dt>
-            <dd className="mt-1 text-base font-bold text-slate-900">{user.name}</dd>
+            <dd className="mt-1 text-base font-bold text-primary">
+              {user.name}
+            </dd>
           </div>
 
-          <div className="rounded-xl bg-slate-50/60 p-4 border border-slate-200/60">
-            <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="rounded-xl border border-hairline/60 bg-sunken/60 p-4">
+            <dt className="text-xs font-bold uppercase tracking-wider text-muted">
               Chamber Email
             </dt>
-            <dd className="mt-1 text-base font-bold text-slate-900">{user.email}</dd>
+            <dd className="mt-1 text-base font-bold text-primary">
+              {user.email}
+            </dd>
           </div>
 
-          <div className="sm:col-span-2 rounded-xl bg-sky-50/50 p-5 border border-sky-100">
+          <div className="rounded-xl border border-accent-100 bg-accent-50/50 p-5 sm:col-span-2">
             <div className="flex items-center justify-between">
-              <dt className="text-xs font-bold uppercase tracking-wider text-sky-800">
+              <dt className="text-xs font-bold uppercase tracking-wider text-accent-800">
                 Firm Role & Designation
               </dt>
-              <span className="rounded-full bg-sky-700 text-white px-2.5 py-0.5 text-xs font-bold">
+              <span className="rounded-full bg-accent-800 px-2.5 py-0.5 text-xs font-bold text-white">
                 {ROLE_LABELS[user.role]}
               </span>
             </div>
-            <dd className="mt-2 text-sm text-slate-700 font-medium">
+            <dd className="mt-2 text-sm font-medium text-secondary">
               {ROLE_DESCRIPTIONS[user.role]}
             </dd>
           </div>
         </dl>
 
-        <p className="mt-5 text-xs text-slate-400 font-serif">
+        <p className="mt-5 font-serif text-xs text-muted">
           Identity details and role privileges are managed by firm partners.
         </p>
       </section>
 
-      {/* Password & Security Card */}
-      <section className="surface-card p-6 md:p-8">
-        <div className="flex items-center gap-3 pb-4 mb-5 border-b border-slate-100">
-          <div className="p-2 rounded-xl bg-indigo-50 text-indigo-700">
-            <Lock className="h-5 w-5" />
+      {/* The one administration action worth a shortcut from here: issuing an
+          account is what a partner most often arrives at settings to do. */}
+      {canManageUsers(user.role) ? (
+        <section className="surface-card flex flex-wrap items-center justify-between gap-4 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-accent-50 p-2 text-accent-700">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-serif text-base font-bold text-primary">
+                Onboarding a new advocate or clerk?
+              </h2>
+              <p className="text-xs text-muted">
+                There is no self-service sign-up — partners issue every account
+                under Team &amp; access.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-serif text-base font-bold text-slate-900">Password & Security</h2>
-            <p className="text-xs text-slate-500">Update your account authentication password.</p>
-          </div>
-        </div>
 
-        <ChangePasswordForm />
-
-        <div className="mt-6 rounded-xl bg-amber-50/60 border border-amber-200/70 p-4 text-xs text-amber-900 flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            Changing your password applies immediately for future sign-ins. Active browser sessions remain valid until token expiry. If you suspect unauthorized access, contact a Firm Partner immediately.
-          </p>
-        </div>
-      </section>
+          <Link
+            href="/settings/team?new=1"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-accent-700 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-colors hover:bg-accent-800"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Add a user</span>
+          </Link>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -78,7 +78,7 @@ export async function createUser(
     },
   });
 
-  revalidatePath("/admin");
+  revalidatePath("/settings/team");
   return { ok: true };
 }
 
@@ -139,7 +139,7 @@ export async function updateUser(
     },
   });
 
-  revalidatePath("/admin");
+  revalidatePath("/settings/team");
   return { ok: true };
 }
 
@@ -161,7 +161,7 @@ export async function resetUserPassword(
     data: { passwordHash: await hash(parsed.data.password, BCRYPT_ROUNDS) },
   });
 
-  revalidatePath("/admin");
+  revalidatePath("/settings/team");
   return { ok: true, message: "Password updated." };
 }
 
@@ -181,6 +181,6 @@ export async function setUserActive(
   }
 
   await prisma.user.update({ where: { id: userId }, data: { isActive } });
-  revalidatePath("/admin");
+  revalidatePath("/settings/team");
   return { ok: true };
 }

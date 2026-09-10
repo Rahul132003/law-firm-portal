@@ -29,7 +29,7 @@ export function CaseTabs({ caseId, tabs }: { caseId: string; tabs: Tab[] }) {
             aria-current={isActive ? "page" : undefined}
             className={
               isActive
-                ? "flex items-center gap-1.5 whitespace-nowrap border-b-2 border-brass-500 px-3 py-2.5 text-sm font-medium text-primary"
+                ? "flex items-center gap-1.5 whitespace-nowrap border-b-2 border-accent-600 px-3 py-2.5 text-sm font-medium text-primary"
                 : "flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5 text-sm text-secondary transition-colors hover:text-primary"
             }
           >

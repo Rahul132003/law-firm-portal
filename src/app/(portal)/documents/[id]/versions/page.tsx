@@ -85,7 +85,7 @@ export default async function DocumentVersionsPage(
               <span
                 className={
                   version.isLatest
-                    ? "grid size-8 shrink-0 place-items-center rounded-full bg-ink-900 text-xs font-semibold text-white"
+                    ? "grid size-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-white"
                     : "grid size-8 shrink-0 place-items-center rounded-full bg-sunken text-xs font-semibold text-secondary"
                 }
               >

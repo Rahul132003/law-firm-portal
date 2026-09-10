@@ -30,16 +30,18 @@ export const TASK_KIND_ORDER: readonly TaskKind[] = [
 
 /** Deadlines are visually distinct from ordinary work items. */
 export const TASK_KIND_STYLES: Record<TaskKind, string> = {
+  // Deadlines keep a tint because urgency is the point; ordinary work stays
+  // neutral so the two deadline kinds actually stand out.
   GENERAL: "bg-sunken text-secondary",
-  FILING_DEADLINE: "bg-orange-50 text-orange-800 border border-orange-200",
-  LIMITATION_DEADLINE: "bg-red-50 text-red-800 border border-red-200",
+  FILING_DEADLINE: "border border-warning/30 bg-warning-soft text-warning",
+  LIMITATION_DEADLINE: "border border-danger/30 bg-danger-soft text-danger",
 };
 
 export const TASK_STATUS_STYLES: Record<TaskStatus, string> = {
-  TODO: "bg-ink-100 text-ink-700",
-  IN_PROGRESS: "bg-brass-50 text-brass-800",
-  BLOCKED: "bg-red-50 text-red-800",
-  DONE: "bg-emerald-50 text-emerald-800",
+  TODO: "bg-sunken text-secondary",
+  IN_PROGRESS: "bg-accent-50 text-accent-800",
+  BLOCKED: "bg-danger-soft text-danger",
+  DONE: "bg-success-soft text-success",
 };
 
 export function isDeadline(kind: TaskKind): boolean {

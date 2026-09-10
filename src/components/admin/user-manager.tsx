@@ -29,7 +29,7 @@ export type ManagedUser = {
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs text-red-700">{message}</p>;
+  return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
 function RoleSelect({
@@ -84,9 +84,15 @@ function SupervisorSelect({
   );
 }
 
-function CreateUserForm({ users }: { users: ManagedUser[] }) {
+function CreateUserForm({
+  users,
+  defaultOpen = false,
+}: {
+  users: ManagedUser[];
+  defaultOpen?: boolean;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [state, setState] = useState<AdminFormState>({});
   const [pending, startTransition] = useTransition();
 
@@ -198,7 +204,7 @@ function CreateUserForm({ users }: { users: ManagedUser[] }) {
       {state.message ? (
         <p
           role="alert"
-          className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800"
+          className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
         >
           {state.message}
         </p>
@@ -325,7 +331,7 @@ function EditUserRow({
         {state.message ? (
           <p
             role="alert"
-            className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800"
+            className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
           >
             {state.message}
           </p>
@@ -383,7 +389,7 @@ function EditUserRow({
         </div>
         <FieldError message={pwState.errors?.password} />
         {pwState.ok && pwState.message ? (
-          <p className="mt-1 text-xs text-emerald-700">{pwState.message}</p>
+          <p className="mt-1 text-xs text-success">{pwState.message}</p>
         ) : null}
       </form>
     </li>
@@ -393,9 +399,12 @@ function EditUserRow({
 export function UserManager({
   users,
   currentUserId,
+  defaultCreateOpen = false,
 }: {
   users: ManagedUser[];
   currentUserId: string;
+  /** Opens the create form on first render, for `?new=1` deep links. */
+  defaultCreateOpen?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<string | null>(null);
@@ -404,12 +413,12 @@ export function UserManager({
 
   return (
     <div className="space-y-4">
-      <CreateUserForm users={users} />
+      <CreateUserForm users={users} defaultOpen={defaultCreateOpen} />
 
       {error ? (
         <p
           role="alert"
-          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -437,7 +446,7 @@ export function UserManager({
                       {ROLE_LABELS[person.role]}
                     </span>
                     {!person.isActive ? (
-                      <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-800">
+                      <span className="rounded-md bg-danger-soft px-1.5 py-0.5 text-[11px] font-medium text-danger">
                         Deactivated
                       </span>
                     ) : null}

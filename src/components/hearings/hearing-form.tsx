@@ -19,7 +19,7 @@ export type HearingDefaults = {
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs text-red-700">{message}</p>;
+  return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
 /**
@@ -179,7 +179,7 @@ export function HearingForm({
       {state.message ? (
         <p
           role="alert"
-          className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800"
+          className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger"
         >
           {state.message}
         </p>
