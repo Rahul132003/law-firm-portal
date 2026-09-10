@@ -4,10 +4,11 @@ import "server-only";
  * Fail fast on missing configuration rather than surfacing a confusing runtime
  * error deep inside a query or an upload.
  *
- * Each getter accepts more than one variable name: the project's own
- * `DB_PRISMA_URL` etc., and also the names the Vercel Postgres / Neon
- * marketplace integration creates automatically, so a dashboard-connected
- * database works without setting a custom prefix.
+ * Each getter accepts several variable names: the project's own `DB_PRISMA_URL`
+ * etc., and the names the Vercel Postgres / Neon marketplace integration
+ * creates — both plain (`POSTGRES_PRISMA_URL`, `DATABASE_URL`) and with the
+ * `DB` custom prefix this project's integration was configured with
+ * (`DB_POSTGRES_PRISMA_URL`, `DB_DATABASE_URL`).
  */
 function firstOf(...names: string[]): string {
   for (const name of names) {
@@ -24,6 +25,9 @@ export const env = {
   get databaseUrl() {
     return firstOf(
       "DB_PRISMA_URL",
+      "DB_POSTGRES_PRISMA_URL",
+      "DB_POSTGRES_URL",
+      "DB_DATABASE_URL",
       "POSTGRES_PRISMA_URL",
       "POSTGRES_URL",
       "DATABASE_URL",
