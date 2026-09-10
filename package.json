@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "user:password": "tsx scripts/set-password.ts",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "admin:create": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
