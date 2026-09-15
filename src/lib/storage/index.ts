@@ -18,5 +18,16 @@ export type { StorageDriver, StoredFile } from "./types";
  * /api/documents/[id]/download, which authorises and audits first.
  */
 export function getStorage(): StorageDriver {
-  return process.env.BLOB_READ_WRITE_TOKEN ? blobDriver : localDriver;
+  if (process.env.BLOB_READ_WRITE_TOKEN) return blobDriver;
+
+  // Serverless filesystems are read-only or discarded between invocations, so
+  // the local driver in production would lose court filings. Fail loudly.
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_LOCAL_STORAGE !== "true") {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN is not set in production. Connect a Vercel Blob store, " +
+        "or set ALLOW_LOCAL_STORAGE=true only for a self-hosted server with a persistent disk.",
+    );
+  }
+
+  return localDriver;
 }

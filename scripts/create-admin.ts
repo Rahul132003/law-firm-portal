@@ -4,7 +4,7 @@
  * Reads three variables from the environment — set them in `.env` or inline:
  *
  *   ADMIN_EMAIL      login email
- *   ADMIN_PASSWORD   plaintext password (>= 6 chars); stored bcrypt-hashed
+ *   ADMIN_PASSWORD   plaintext password (>= 12 chars); stored bcrypt-hashed
  *   ADMIN_NAME       display name (optional, defaults to "Administrator")
  *
  * Idempotent: run it once after `prisma migrate deploy` against a fresh
@@ -21,7 +21,7 @@ import { compare, hash } from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 const BCRYPT_ROUNDS = 12;
-const MIN_LENGTH = 6;
+const MIN_LENGTH = 12;
 
 function connect() {
   const url =

@@ -8,7 +8,7 @@ const ROLES = [
 ] as const;
 
 /** Long enough to matter, short enough that nobody writes it on a sticky note. */
-export const MIN_PASSWORD_LENGTH = 6;
+export const MIN_PASSWORD_LENGTH = 12;
 
 export const userCreateSchema = z.object({
   name: z

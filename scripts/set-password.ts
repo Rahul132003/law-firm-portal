@@ -15,8 +15,8 @@ import { hash } from "bcryptjs";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 
-const BCRYPT_ROUNDS = 9;
-const MIN_LENGTH = 6;
+const BCRYPT_ROUNDS = 12;
+const MIN_LENGTH = 12;
 
 function connect() {
   const connectionString = process.env.DB_URL_NON_POOLING;

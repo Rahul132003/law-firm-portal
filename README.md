@@ -100,6 +100,8 @@ the admin console lands in build step 6:
 npm run user:password -- partner@example.com "a password you choose"
 ```
 
+> Deploying to production? Follow [DEPLOY.md](DEPLOY.md).
+>
 > **These accounts must be deleted or rotated before deploy.** The seed script
 > refuses to run when `NODE_ENV=production` or `VERCEL_ENV=production` unless
 > `ALLOW_PRODUCTION_SEED=yes-i-am-sure` is set.

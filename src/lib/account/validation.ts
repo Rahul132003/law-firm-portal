@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Matches the floor the admin console enforces. */
-export const MIN_PASSWORD_LENGTH = 6;
+export const MIN_PASSWORD_LENGTH = 12;
 
 export const changePasswordSchema = z
   .object({
