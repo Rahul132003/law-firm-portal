@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Inter, Source_Serif_4 } from "next/font/google";
 import { FIRM_NAME } from "@/lib/firm";
 import "./globals.css";
@@ -37,6 +37,16 @@ export const metadata: Metadata = {
   description: `Internal case management portal for ${FIRM_NAME}.`,
   // Internal tool: keep it out of search indexes entirely.
   robots: { index: false, follow: false },
+  // Installed as an app from the Home Screen (required for push on iOS).
+  appleWebApp: { capable: true, title: FIRM_NAME, statusBarStyle: "default" },
+  icons: {
+    icon: [{ url: "/icons/192", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/180", sizes: "180x180", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1a459e",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,8 @@
 import "server-only";
+import { after } from "next/server";
 import type { NotificationKind } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { sendPush } from "@/lib/push/send";
 
 /**
  * Notification delivery.
@@ -11,6 +13,8 @@ import { prisma } from "@/lib/prisma";
  *   something. If it fails, the notification did not happen, and callers must
  *   be able to see that — a reminder sweep that reports success while writing
  *   nothing is worse than one that reports failure.
+ * - **device push is best-effort** and runs after the response; see
+ *   src/lib/push/send.ts.
  * - **outbound channels are best-effort.** A bounced email must not cost the
  *   in-app record or abort a batch, so those failures are logged and
  *   swallowed.
@@ -60,6 +64,22 @@ const emailChannel: NotificationChannel = {
   },
 };
 
+/**
+ * Device push runs after the response is sent (`after`), so saving a hearing
+ * does not wait on phones. Outside a request — scripts, tests — `after` is
+ * unavailable and the push is awaited instead.
+ */
+async function pushInBackground(notifications: OutboundNotification[]): Promise<void> {
+  if (notifications.length === 0) return;
+  const run = () =>
+    sendPush(notifications).catch((error) => console.error("Device push failed", error));
+  try {
+    after(run);
+  } catch {
+    await run();
+  }
+}
+
 function auxiliaryChannels(): NotificationChannel[] {
   // Enabling one is a matter of setting the env var once `send` is real.
   return process.env.NOTIFY_EMAIL_ENABLED === "true" ? [emailChannel] : [];
@@ -84,6 +104,9 @@ export async function deliver(
       error,
     );
   }
+
+  // Push only what was recorded, so a device never shows an alert the bell lacks.
+  if (delivered) await pushInBackground([notification]);
 
   await Promise.all(
     auxiliaryChannels().map(async (channel) => {
@@ -117,6 +140,8 @@ export async function deliverBatch(
       linkUrl: n.linkUrl ?? null,
     })),
   });
+
+  await pushInBackground(notifications);
 
   const outbound = auxiliaryChannels();
   if (outbound.length > 0) {

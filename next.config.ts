@@ -6,6 +6,19 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: import.meta.dirname,
   },
+  async headers() {
+    return [
+      {
+        // Always revalidate the service worker so fixes reach devices promptly.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
   experimental: {
     // Enables forbidden() / unauthorized(), used by the data access layer to
     // terminate rendering with a real 403 instead of a redirect.

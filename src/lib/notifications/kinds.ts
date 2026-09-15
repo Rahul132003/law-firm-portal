@@ -60,6 +60,16 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindInfo> = {
     description: "A document or new version is uploaded to one of your cases.",
     mandatory: false,
   },
+  NOTE_ADDED: {
+    label: "New case notes",
+    description: "A colleague adds a note to one of your cases.",
+    mandatory: false,
+  },
+  CASE_STATUS_CHANGED: {
+    label: "Case status changes",
+    description: "One of your cases moves to a new stage, such as judgment or appeal.",
+    mandatory: false,
+  },
 };
 
 export const NOTIFICATION_KIND_ORDER = Object.keys(NOTIFICATION_KINDS) as NotificationKind[];

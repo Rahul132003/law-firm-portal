@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { MobileNav } from "@/components/nav/mobile-nav";
+import { PushPrompt } from "@/components/notifications/push-prompt";
+import { PUSH_DEVICE_COOKIE } from "@/lib/push/subscription";
 import { PortalChrome } from "@/components/nav/portal-chrome";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { requireUser } from "@/lib/dal";
@@ -95,6 +97,8 @@ export default async function PortalLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <MobileNav items={items} unreadCount={unreadCount} />
+
+      <PushPrompt registeredOnServer={Boolean(cookieStore.get(PUSH_DEVICE_COOKIE)?.value)} />
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-8 md:py-8">
         {children}

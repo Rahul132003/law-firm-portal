@@ -6,6 +6,7 @@ import {
   canCreateCases,
   canDeleteCase,
   canEditCase,
+  canViewStrategyNotes,
   canWriteStrategyNotes,
 } from "@/lib/auth/roles";
 import { resolveClientId } from "@/lib/clients/resolve";
@@ -20,7 +21,9 @@ import { normalisePartyName } from "@/lib/conflicts/match";
 import { decideWaiver, readWaiver, type WaiverDecision } from "@/lib/conflicts/waiver";
 import { encryptField } from "@/lib/crypto";
 import { requireCapability, requireCaseAccess, requireUser } from "@/lib/dal";
-import { notify } from "@/lib/notifications/notify";
+import type { CaseStatus } from "@/generated/prisma/enums";
+import { CASE_STATUS_LABELS } from "@/lib/cases/labels";
+import { caseTeamIds, notify } from "@/lib/notifications/notify";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -97,6 +100,21 @@ async function notifyAddedToCase(
     actorId: actor.id,
     title: `Added to ${matter.caseNumber}`,
     body: `${actor.name} added you to the team on "${matter.title}".`,
+    linkUrl: `/cases/${matter.id}`,
+  });
+}
+
+async function notifyStatusChanged(
+  actor: { id: string; name: string },
+  matter: { id: string; caseNumber: string; title: string },
+  status: CaseStatus,
+) {
+  await notify({
+    kind: "CASE_STATUS_CHANGED",
+    recipientIds: await caseTeamIds(matter.id),
+    actorId: actor.id,
+    title: `${matter.caseNumber} is now ${CASE_STATUS_LABELS[status]}`,
+    body: `${actor.name} moved "${matter.title}" to ${CASE_STATUS_LABELS[status]}.`,
     linkUrl: `/cases/${matter.id}`,
   });
 }
@@ -241,6 +259,7 @@ export async function updateCase(
   const before = await prisma.case.findUnique({
     where: { id: caseId },
     select: {
+      status: true,
       clientName: true,
       opposingParty: true,
       clientId: true,
@@ -325,6 +344,9 @@ export async function updateCase(
   if (report && waiver?.ok && waiver.outcome === "WAIVED") {
     await notifyPartnersOfWaiver(user, matter, report.adverse.length);
   }
+  if (before.status !== caseFields.status) {
+    await notifyStatusChanged(user, matter, caseFields.status);
+  }
 
   revalidatePath("/cases");
   revalidatePath(`/cases/${caseId}`);
@@ -337,17 +359,28 @@ export async function updateCaseStatus(
   status: string,
 ): Promise<{ ok: boolean; message?: string }> {
   await requireCapability(canEditCase);
-  await requireCaseAccess(caseId);
+  const { user } = await requireCaseAccess(caseId);
 
   const parsed = statusChangeSchema.safeParse({ caseId, status });
   if (!parsed.success) {
     return { ok: false, message: "That is not a valid status." };
   }
 
+  const before = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: { caseNumber: true, title: true, status: true },
+  });
+  if (!before) return { ok: false, message: "This case no longer exists." };
+
   await prisma.case.update({
     where: { id: caseId },
     data: { status: parsed.data.status },
   });
+
+  // A card dropped back into its own column is not news.
+  if (before.status !== parsed.data.status) {
+    await notifyStatusChanged(user, { id: caseId, ...before }, parsed.data.status);
+  }
 
   revalidatePath("/cases");
   revalidatePath(`/cases/${caseId}`);
@@ -407,6 +440,29 @@ export async function addCaseNote(
       visibility: parsed.data.visibility,
     },
   });
+
+  // The note text is never copied into a notification: notes are encrypted at
+  // rest and notifications are not, and push can reach a lock screen.
+  const team = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: {
+      caseNumber: true,
+      assignments: { select: { userId: true, user: { select: { role: true } } } },
+    },
+  });
+  if (team) {
+    const isStrategy = parsed.data.visibility === "STRATEGY";
+    await notify({
+      kind: "NOTE_ADDED",
+      recipientIds: team.assignments
+        .filter((a) => !isStrategy || canViewStrategyNotes(a.user.role))
+        .map((a) => a.userId),
+      actorId: user.id,
+      title: `${isStrategy ? "Strategy note" : "New note"} on ${team.caseNumber}`,
+      body: `${user.name} added a ${isStrategy ? "strategy " : ""}note.`,
+      linkUrl: `/cases/${caseId}/notes`,
+    });
+  }
 
   revalidatePath(`/cases/${caseId}/notes`);
   return {};

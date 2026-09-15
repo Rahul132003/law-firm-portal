@@ -17,6 +17,9 @@ Generate fresh values for production — never reuse ones from `.env`.
 | `CRON_SECRET` | `openssl rand -hex 24` | Vercel Cron sends it automatically. If unset, the reminder crons refuse to run. |
 | `BLOB_READ_WRITE_TOKEN` | Created by connecting a Vercel Blob store | If unset in production, document upload and download refuse to run rather than write to the throwaway serverless disk. |
 | `NEXT_PUBLIC_FIRM_NAME` | — | Branding. |
+| `NEXT_PUBLIC_FIRM_TIME_ZONE` | e.g. `Asia/Kolkata` | Which calendar day recorded time belongs to. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` (once) | Phone/desktop alerts. **Do not reuse the development keys.** Changing them later forces everyone to turn alerts on again. |
+| `VAPID_SUBJECT` | `mailto:it@yourfirm.com` | Contact the push services can reach. |
 | `DB_PRISMA_URL` / `DB_URL_NON_POOLING` | Created by the Neon integration | The app also accepts the integration's own names (see `src/lib/env.ts`). Pooled for the app, direct for migrations. |
 
 Leave `FIELD_ENCRYPTION_KEY_PREVIOUS` empty; it is only for key rotation.
@@ -62,6 +65,7 @@ npm run admin:create
   curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/task-deadlines
   ```
 - [ ] The same request **without** the header returns 401.
+- [ ] On a phone: open the portal, press **Turn on** in the banner, allow, then **Settings → Notifications → Send test**. The alert arrives with the portal closed. On iPhone, add to Home Screen first.
 
 ## Every deploy
 

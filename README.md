@@ -248,8 +248,39 @@ history at `/notifications`.
 | Hearing listed or moved | Case team | Yes |
 | Document uploaded | Case team | Yes |
 
+| New case note | Case team (strategy notes skip paralegals) | Yes |
+| Case status changed | Case team | Yes |
+
 Nobody is notified about their own actions. Preferences live in **Settings →
-Notifications**. Read notifications are deleted after 90 days and all after a
+Notifications**.
+
+### Phone and desktop alerts (Web Push)
+
+Every notification above is also pushed to the person's registered devices,
+including when the portal is closed — the same way native apps notify.
+
+- **Asking permission.** A banner offers "Turn on"; the browser's permission
+  dialog appears only after that click (browsers ignore unprompted requests,
+  and asking before explaining invites "Block"). "Not now" snoozes it for a
+  week. Settings → Notifications shows each device, a **Send test** button and
+  **Turn off**.
+- **iPhone / iPad**: Apple only allows web push for sites added to the Home
+  Screen (iOS 16.4+). The banner explains how. Android, Windows, macOS and
+  Linux work straight from the browser.
+- **Installable**: the portal ships a web app manifest and generated icons, so
+  it can be installed as an app on any platform.
+- **Privacy**: note text is never included. Each person can **hide case
+  details on lock screens**, in which case alerts name only the kind of update.
+  Signing out removes that browser's registration, so a shared computer does
+  not keep receiving the previous user's alerts. Deactivated staff receive
+  nothing. Expired subscriptions are removed automatically.
+- **Security**: the server only sends to the real push services (Google,
+  Mozilla, Apple, Microsoft), so a crafted subscription cannot make it call
+  arbitrary URLs.
+- **Setup**: generate keys once with `npx web-push generate-vapid-keys` and set
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`.
+  Without them, push is off and everything else works. Push requires HTTPS
+  (localhost is exempt for development). Read notifications are deleted after 90 days and all after a
 year (by the daily task-deadline cron).
 
 ## Task deadlines
