@@ -221,6 +221,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 | `npm run build`       | Production build                            |
 | `npm run typecheck`   | `tsc --noEmit`                              |
 | `npm run lint`        | ESLint                                      |
+| `npm test`            | Vitest unit tests (no database needed)      |
 | `npm run db:migrate`  | Create + apply a migration                  |
 | `npm run db:deploy`   | Apply migrations (production)               |
 | `npm run db:seed`     | Placeholder staff accounts + sample matters |
