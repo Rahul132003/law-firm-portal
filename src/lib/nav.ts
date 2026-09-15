@@ -35,6 +35,7 @@ const NAV_DEFINITIONS: readonly NavDefinition[] = [
   { href: "/documents", label: "Documents", icon: "file", ready: true },
   { href: "/diary", label: "Court Diary", icon: "calendar", ready: true },
   { href: "/tasks", label: "Tasks", icon: "check", ready: true },
+  { href: "/time", label: "Time", icon: "clock", ready: true },
   { href: "/notices", label: "Notice Board", icon: "megaphone", ready: true },
   {
     href: "/reports",

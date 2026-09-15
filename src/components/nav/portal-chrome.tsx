@@ -28,8 +28,10 @@ export function PortalChrome({
   nowMs,
   dateLabel,
   initialCollapsed,
+  runningTimer,
   children,
 }: {
+  runningTimer: { startedAtMs: number; label: string } | null;
   items: NavItem[];
   firmName: string;
   user: { name: string; roleLabel: string; initials: string };
@@ -67,6 +69,7 @@ export function PortalChrome({
           unreadCount={unreadCount}
           nowMs={nowMs}
           user={user}
+          runningTimer={runningTimer}
         />
 
         {children}

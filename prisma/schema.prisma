@@ -117,6 +117,19 @@ enum ReminderOffset {
   OVERDUE
 }
 
+/// What a block of recorded time was spent on.
+enum TimeActivity {
+  RESEARCH
+  DRAFTING
+  HEARING
+  CLIENT_MEETING
+  CORRESPONDENCE
+  REVIEW
+  TRAVEL
+  ADMIN
+  OTHER
+}
+
 /// What produced a notification. Kept general so task deadlines and notices
 /// reuse the same delivery mechanism rather than growing parallel ones.
 enum NotificationKind {
@@ -150,7 +163,7 @@ model User {
   /// Deactivated users keep their audit trail but cannot authenticate.
   isActive     Boolean  @default(true)
   /// Notification kinds this person has turned off. Critical kinds are never
-  /// honoured here — see MANDATORY_KINDS in src/lib/notifications/kinds.ts.
+  /// honoured here — see isMandatoryKind in src/lib/notifications/kinds.ts.
   mutedNotificationKinds NotificationKind[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -171,6 +184,8 @@ model User {
   auditLogs         AuditLog[]
   notifications     Notification[]
   conflictChecks    ConflictCheck[]
+  timeEntries       TimeEntry[]
+  runningTimer      RunningTimer?
 
   @@index([role])
   @@index([supervisorId])
@@ -252,6 +267,8 @@ model Case {
   tasks          Task[]
   notes          CaseNote[]
   conflictChecks ConflictCheck[]
+  timeEntries    TimeEntry[]
+  runningTimers  RunningTimer[]
 
   @@index([clientId])
   @@index([status])
@@ -477,6 +494,48 @@ model TaskAlert {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, offset])
+}
+
+// ---------------------------------------------------------------------------
+// Time tracking
+// ---------------------------------------------------------------------------
+
+/// A block of time someone spent. Rules live in src/lib/time-tracking/rules.ts.
+model TimeEntry {
+  id          String       @id @default(cuid())
+  userId      String
+  /// Null for firm work not tied to a matter (training, admin).
+  caseId      String?
+  /// The calendar day the work was done, with no time component.
+  workDate    DateTime     @db.Date
+  minutes     Int
+  activity    TimeActivity @default(OTHER)
+  description String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SetNull: deleting a case must not silently erase the hours worked on it.
+  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  @@index([userId, workDate])
+  @@index([caseId, workDate])
+  @@index([workDate])
+}
+
+/// At most one per person. Stored server-side so a timer survives closing the
+/// browser or switching devices.
+model RunningTimer {
+  userId      String       @id
+  caseId      String?
+  activity    TimeActivity @default(OTHER)
+  description String       @default("")
+  startedAt   DateTime     @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  @@index([caseId])
 }
 
 // ---------------------------------------------------------------------------

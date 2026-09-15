@@ -208,6 +208,50 @@ Cases created before this existed have no client link; `npm run
 clients:backfill` (dry run, then `-- --apply`) groups them by normalised name
 and links them.
 
+## Time tracking
+
+`/time` records hours against a case or as firm work, and each case has a
+**Time** tab with totals by person and activity.
+
+- **Entries**: date, duration (typed as `1:30`, `1.5`, `45m` …), activity and
+  a description. No future dates, at most 24 hours per person per day, and
+  only on cases the person can access. Only the author edits an entry; a
+  partner may delete one to correct a mistake.
+- **Timer**: one per person, stored server-side so it survives closing the
+  browser. A running timer shows in the top bar on every page. Starting a new
+  timer records the previous one. A timer left running over 12 hours is not
+  recorded automatically — it was almost certainly forgotten.
+- **Visibility** follows case scope: your own timesheet; senior advocates also
+  see their direct reports; partners see everyone, including a weekly team
+  grid.
+- **Days** belong to the firm's time zone (`NEXT_PUBLIC_FIRM_TIME_ZONE`,
+  default `Asia/Kolkata`), so a timer started at 1 a.m. is not filed under the
+  previous day because the server runs in UTC.
+- Deleting a case keeps its time entries (they become firm work).
+
+There is deliberately no billing: no rates, amounts or invoices.
+
+## Notifications
+
+In-app, through the bell (which refreshes itself every minute) and the full
+history at `/notifications`.
+
+| Kind | Sent to | Can be muted |
+| --- | --- | --- |
+| Hearing reminders (7/3/1 days) | Case team | No |
+| Deadline alerts | Assignee | No |
+| Firm notices | Everyone | No |
+| Conflict waived | Partners | No |
+| Task assigned to you | Assignee | Yes |
+| Task you raised is done | Task creator | Yes |
+| Added to a case | New team members | Yes |
+| Hearing listed or moved | Case team | Yes |
+| Document uploaded | Case team | Yes |
+
+Nobody is notified about their own actions. Preferences live in **Settings →
+Notifications**. Read notifications are deleted after 90 days and all after a
+year (by the daily task-deadline cron).
+
 ## Task deadlines
 
 Tasks carry a *kind*, and the kind sets how early alerting starts — missing a
