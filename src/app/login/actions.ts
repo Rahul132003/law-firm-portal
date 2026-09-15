@@ -44,6 +44,10 @@ export async function login(
         }
         return { error: "Invalid email or password." };
       }
+      // Not a credentials problem: the server failed. The visitor gets a
+      // generic message, but the real cause must reach the logs, or this is
+      // indistinguishable from a wrong password when diagnosing.
+      console.error("[auth] Sign-in failed with a server error", error.type, error.cause ?? error);
       return { error: "Unable to sign in. Please try again." };
     }
 

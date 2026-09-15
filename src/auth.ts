@@ -18,6 +18,28 @@ export class LockedOutError extends CredentialsSignin {
 }
 
 /**
+ * Runs a brute-force-throttle step without letting its failure block sign-in.
+ *
+ * The throttle is a safeguard layered on top of the password check. If its
+ * table is unavailable — most often a deploy that shipped before
+ * `prisma migrate deploy` ran — refusing every login would lock the whole firm
+ * out. So a throttle error is logged loudly and sign-in proceeds with the
+ * password check alone.
+ */
+async function throttleSafely<T>(step: string, run: () => Promise<T>): Promise<T | null> {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(
+      `[auth] Login throttle "${step}" failed; continuing without brute-force protection. ` +
+        "If this mentions a missing table, run `npm run db:deploy` against this database.",
+      error,
+    );
+    return null;
+  }
+}
+
+/**
  * Email/password authentication for firm staff.
  *
  * There is no self-service sign-up by design: accounts are provisioned by an
@@ -46,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // query rather than costing the server a hash. The lock applies to
         // unknown addresses too, so it reveals nothing about who has an account.
         const keys = [emailKey(normalisedEmail), ...(ip ? [ipKey(ip)] : [])];
-        if (await activeLockUntil(keys)) {
+        if (await throttleSafely("check", () => activeLockUntil(keys))) {
           throw new LockedOutError();
         }
 
@@ -71,11 +93,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const passwordMatches = await compare(password, hash);
 
         if (!user || !passwordMatches || !user.isActive) {
-          await recordLoginFailure(normalisedEmail, ip);
+          await throttleSafely("record", () => recordLoginFailure(normalisedEmail, ip));
           return null;
         }
 
-        await clearLoginThrottle(normalisedEmail);
+        await throttleSafely("clear", () => clearLoginThrottle(normalisedEmail));
 
         return {
           id: user.id,
