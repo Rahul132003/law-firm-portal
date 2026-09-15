@@ -31,6 +31,7 @@ export type NavItem = {
 const NAV_DEFINITIONS: readonly NavDefinition[] = [
   { href: "/dashboard", label: "Dashboard", icon: "home", ready: true },
   { href: "/cases", label: "Cases", icon: "folder", ready: true },
+  { href: "/clients", label: "Clients", icon: "users", ready: true },
   { href: "/documents", label: "Documents", icon: "file", ready: true },
   { href: "/diary", label: "Court Diary", icon: "calendar", ready: true },
   { href: "/tasks", label: "Tasks", icon: "check", ready: true },

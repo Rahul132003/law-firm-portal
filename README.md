@@ -177,6 +177,37 @@ Partners get a per-notice receipts view at `/notices/[id]/receipts` showing
 who has acknowledged and who is outstanding. Deactivated staff are excluded
 from the outstanding list.
 
+## Clients and conflict checks
+
+Each case links to a `Client` record (contact details, all matters for that
+client) at `/clients`. Typing a client name on the case form suggests existing
+clients; a name that matches none creates a new record. Clients are visible to
+the same people who can see at least one of their matters.
+
+**Conflict of interest check.** While the case form is filled in, and again
+authoritatively on save, the client and opposing party are matched against
+**every** case in the firm — including closed matters and matters the user is
+not staffed on:
+
+| Finding | Meaning | Effect |
+| --- | --- | --- |
+| Adverse | New client was an opposing party elsewhere, or new opposing party is/was a client | Save is held until the user ticks a confirmation and writes a reason (min. 20 chars) |
+| Related | Same party, same side | Shown for information |
+
+- Matching ignores honorifics, corporate suffixes and punctuation, and treats a
+  name contained in a longer one as a match — tuned to over-report.
+- For matters outside the user's access, only the reason and status are shown;
+  case number and title are withheld.
+- A confirmation is bound to the exact set of matches shown. If the parties are
+  changed and different conflicts appear, it must be given again.
+- Every check is stored in `ConflictCheck` (who, when, what matched, outcome,
+  reason) and the latest one is shown on the case overview. Editing a case
+  re-checks only when its parties change.
+
+Cases created before this existed have no client link; `npm run
+clients:backfill` (dry run, then `-- --apply`) groups them by normalised name
+and links them.
+
 ## Task deadlines
 
 Tasks carry a *kind*, and the kind sets how early alerting starts — missing a
@@ -237,6 +268,9 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 | `npm run db:seed`     | Placeholder staff accounts + sample matters |
 | `npm run db:studio`   | Prisma Studio                               |
 | `npm run user:password -- <email> "<pw>"` | Set an account's password |
+| `npm run admin:create`  | Create or reset the administrator (see DEPLOY.md) |
+| `npm run clients:backfill` | Link pre-existing cases to client records |
+| `npm run crypto:rotate` | Re-encrypt notes under a new key (see DEPLOY.md) |
 
 ## Build status
 

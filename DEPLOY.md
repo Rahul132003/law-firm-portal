@@ -31,6 +31,7 @@ DB_URL_NON_POOLING="postgres://…" npm run db:deploy
 ```
 
 - [ ] `npm run db:deploy` applied every migration with no errors.
+- [ ] If the database already holds cases: `npm run clients:backfill` (review the dry run), then `npm run clients:backfill -- --apply`.
 - [ ] **Do not run `npm run db:seed` against production.** The placeholder accounts are for development only; the script refuses to run in production unless forced.
 - [ ] Neon: point-in-time restore / backups are enabled on the production branch.
 

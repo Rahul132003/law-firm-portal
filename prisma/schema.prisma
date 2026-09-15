@@ -42,6 +42,20 @@ enum CaseStatus {
   CLOSED
 }
 
+enum ClientKind {
+  INDIVIDUAL
+  ORGANISATION
+}
+
+/// How a conflict-of-interest check on a case was resolved.
+enum ConflictOutcome {
+  /// No adverse match was found.
+  CLEAR
+  /// Adverse matches were found and the person saving the case recorded why
+  /// the firm may still act.
+  WAIVED
+}
+
 /// A role on one specific case, independent of the firm-wide Role.
 enum CaseRole {
   LEAD_COUNSEL
@@ -141,6 +155,7 @@ model User {
   noticeReads       NoticeRead[]
   auditLogs         AuditLog[]
   notifications     Notification[]
+  conflictChecks    ConflictCheck[]
 
   @@index([role])
   @@index([supervisorId])
@@ -165,6 +180,31 @@ model LoginThrottle {
 }
 
 // ---------------------------------------------------------------------------
+// Clients
+// ---------------------------------------------------------------------------
+
+/// A person or organisation the firm acts for. Internal record only — clients
+/// never get portal accounts.
+model Client {
+  id             String     @id @default(cuid())
+  name           String
+  /// Output of normalisePartyName() in src/lib/conflicts/match.ts. Used to
+  /// resolve a typed client name to an existing record.
+  normalizedName String
+  kind           ClientKind @default(INDIVIDUAL)
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  cases Case[]
+
+  @@index([normalizedName])
+  @@index([name])
+}
+
+// ---------------------------------------------------------------------------
 // Cases
 // ---------------------------------------------------------------------------
 
@@ -172,7 +212,11 @@ model Case {
   id              String     @id @default(cuid())
   caseNumber      String     @unique
   title           String
+  /// Display name, kept in step with the linked Client on every save.
   clientName      String
+  /// Null only for cases created before the client register existed and not
+  /// yet backfilled (`npm run clients:backfill`).
+  clientId        String?
   caseType        CaseType
   court           String
   jurisdiction    String
@@ -186,12 +230,15 @@ model Case {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  assignments CaseAssignment[]
-  documents   Document[]
-  hearings    Hearing[]
-  tasks       Task[]
-  notes       CaseNote[]
+  client         Client?          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  assignments    CaseAssignment[]
+  documents      Document[]
+  hearings       Hearing[]
+  tasks          Task[]
+  notes          CaseNote[]
+  conflictChecks ConflictCheck[]
 
+  @@index([clientId])
   @@index([status])
   @@index([caseType])
   @@index([court])
@@ -213,6 +260,31 @@ model CaseAssignment {
   @@unique([caseId, userId])
   @@index([userId])
   @@index([caseId])
+}
+
+/// Record of a conflict-of-interest search run when a case's parties were set.
+/// Append-only: a later check adds a row rather than overwriting the history.
+model ConflictCheck {
+  id             String          @id @default(cuid())
+  caseId         String
+  performedById  String
+  /// The names searched, as entered at the time.
+  clientName     String
+  opposingParty  String?
+  adverseMatches Int
+  relatedMatches Int
+  /// Snapshot of what was shown: [{ caseNumber, title, reason, strength }].
+  /// Kept so the record stands even if the matched cases later change.
+  matches        Json
+  outcome        ConflictOutcome
+  waiverReason   String?
+  createdAt      DateTime        @default(now())
+
+  case        Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  performedBy User @relation(fields: [performedById], references: [id])
+
+  @@index([caseId, createdAt])
+  @@index([outcome, createdAt])
 }
 
 /// Case strategy / working notes. `body` is stored AES-256-GCM encrypted.
