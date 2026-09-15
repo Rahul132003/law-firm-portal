@@ -19,7 +19,8 @@
     "postinstall": "prisma generate",
     "user:password": "tsx scripts/set-password.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "admin:create": "tsx scripts/create-admin.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "crypto:rotate": "tsx scripts/rotate-encryption-key.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

@@ -17,33 +17,20 @@ import "dotenv/config";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
-import { createCipheriv, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+import { parseKey, seal } from "../src/lib/field-cipher";
 
 const BCRYPT_ROUNDS = 12;
 
 /**
- * Mirror of `encryptField` in src/lib/crypto.ts. Duplicated rather than
- * imported because that module is marked `server-only` and cannot be pulled
- * into a plain Node script. Keep the envelope format in sync.
+ * Same envelope as `encryptField` in src/lib/crypto.ts. That module is marked
+ * `server-only` and cannot load in a plain Node script, so this uses the
+ * shared cipher it is built on.
  */
 function encryptField(plaintext: string): string {
-  const key = Buffer.from(process.env.FIELD_ENCRYPTION_KEY ?? "", "base64");
-  if (key.length !== 32) {
-    throw new Error(
-      "FIELD_ENCRYPTION_KEY must decode to 32 bytes. See .env.example.",
-    );
-  }
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  return [
-    "v1",
-    iv.toString("base64"),
-    cipher.getAuthTag().toString("base64"),
-    data.toString("base64"),
-  ].join(".");
+  return seal(plaintext, parseKey(process.env.FIELD_ENCRYPTION_KEY ?? ""));
 }
 
 /** Reserved by RFC 2606 — can never be a real firm domain. */
