@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pruneLoginThrottle } from "@/lib/auth/throttle";
 import { isCronAuthorised } from "@/lib/cron/auth";
+import { pruneNotifications } from "@/lib/notifications/queries";
 import { runTaskDeadlineSweep } from "@/lib/tasks/alerts";
 
 /**
@@ -23,7 +24,17 @@ async function handle(request: Request) {
       return 0;
     });
 
-    return NextResponse.json({ ok: true, ...result, throttleRowsPruned });
+    const notificationsPruned = await pruneNotifications().catch((error) => {
+      console.error("Notification pruning failed", error);
+      return 0;
+    });
+
+    return NextResponse.json({
+      ok: true,
+      ...result,
+      throttleRowsPruned,
+      notificationsPruned,
+    });
   } catch (error) {
     console.error("Task deadline sweep failed", error);
     return NextResponse.json(

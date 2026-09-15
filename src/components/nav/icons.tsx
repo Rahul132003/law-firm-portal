@@ -12,6 +12,8 @@ import {
   KeyRound,
   Users,
   Building2,
+  Bell,
+  Clock,
   LucideIcon
 } from "lucide-react";
 
@@ -29,6 +31,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   key: KeyRound,
   users: Users,
   building: Building2,
+  bell: Bell,
+  clock: Clock,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {

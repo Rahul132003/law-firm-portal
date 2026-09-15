@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
   markAllNotificationsRead,
@@ -16,6 +16,8 @@ export type NotificationItem = {
   readAt: Date | null;
   createdAt: Date;
 };
+
+const POLL_INTERVAL_MS = 60_000;
 
 function relativeTime(value: Date, nowMs: number): string {
   const minutes = Math.round((nowMs - value.getTime()) / 60_000);
@@ -49,6 +51,42 @@ export function NotificationBell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
+
+  // Keep the count live. Poll only while the tab is visible, and ask the
+  // server to re-render only when something actually changed.
+  const latest = useRef({ unreadCount, newestId: notifications[0]?.id ?? null });
+  useEffect(() => {
+    latest.current = { unreadCount, newestId: notifications[0]?.id ?? null };
+  }, [unreadCount, notifications]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function check() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const response = await fetch("/api/notifications/summary", { cache: "no-store" });
+        if (!response.ok || cancelled) return;
+        const summary = (await response.json()) as { unreadCount: number; newestId: string | null };
+        if (
+          summary.unreadCount !== latest.current.unreadCount ||
+          summary.newestId !== latest.current.newestId
+        ) {
+          router.refresh();
+        }
+      } catch {
+        // Offline or a transient failure: the next tick tries again.
+      }
+    }
+
+    const timer = setInterval(check, POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [router]);
 
   return (
     <div className="relative">
@@ -192,6 +230,22 @@ export function NotificationBell({
               })}
             </ul>
           )}
+          <div className="sticky bottom-0 flex items-center justify-between border-t border-hairline bg-raised px-3 py-2">
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="text-[11px] font-medium text-primary hover:underline"
+            >
+              View all
+            </Link>
+            <Link
+              href="/settings/notifications"
+              onClick={() => setOpen(false)}
+              className="text-[11px] text-secondary hover:underline"
+            >
+              Preferences
+            </Link>
+          </div>
         </div>
       ) : null}
     </div>

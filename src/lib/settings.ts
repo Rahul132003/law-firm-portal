@@ -25,6 +25,11 @@ const SETTINGS_DEFINITIONS: readonly SettingsDefinition[] = [
     icon: "key",
   },
   {
+    href: "/settings/notifications",
+    label: "Notifications",
+    icon: "bell",
+  },
+  {
     href: "/settings/team",
     label: "Team & access",
     icon: "users",

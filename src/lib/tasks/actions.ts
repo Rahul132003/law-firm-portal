@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import type { TaskStatus } from "@/generated/prisma/enums";
 import { canAssignTasks, isAdmin } from "@/lib/auth/roles";
 import { hasCaseAccess, requireUser } from "@/lib/dal";
+import { notify } from "@/lib/notifications/notify";
 import { prisma } from "@/lib/prisma";
 import { getTaskForAccess } from "./queries";
 import { fieldErrors, statusChangeSchema, taskInputSchema } from "./validation";
@@ -12,6 +13,49 @@ export type TaskFormState = {
   message?: string;
   ok?: boolean;
 };
+
+const dueFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
+function shortDescription(description: string): string {
+  return description.length > 60 ? `${description.slice(0, 57)}…` : description;
+}
+
+function taskLink(caseId: string | null): string {
+  return caseId ? `/cases/${caseId}/tasks` : "/tasks";
+}
+
+async function notifyAssigned(
+  actor: { id: string; name: string },
+  task: { assignedToId: string; description: string; dueDate: Date; caseId: string | null },
+) {
+  await notify({
+    kind: "TASK_ASSIGNED",
+    recipientIds: [task.assignedToId],
+    actorId: actor.id,
+    title: `New task: ${shortDescription(task.description)}`,
+    body: `${actor.name} assigned you a task due ${dueFormat.format(task.dueDate)}.`,
+    linkUrl: taskLink(task.caseId),
+  });
+}
+
+async function notifyCompleted(
+  actor: { id: string; name: string },
+  task: { createdById: string | null; description: string; caseId: string | null },
+) {
+  if (!task.createdById) return;
+  await notify({
+    kind: "TASK_COMPLETED",
+    recipientIds: [task.createdById],
+    actorId: actor.id,
+    title: `Done: ${shortDescription(task.description)}`,
+    body: `${actor.name} marked a task you raised as done.`,
+    linkUrl: taskLink(task.caseId),
+  });
+}
 
 function readForm(formData: FormData) {
   const text = (key: string) => {
@@ -72,6 +116,8 @@ export async function createTask(
     },
   });
 
+  await notifyAssigned(user, data);
+
   revalidatePath("/tasks");
   if (data.caseId) revalidatePath(`/cases/${data.caseId}/tasks`);
   return { ok: true };
@@ -114,6 +160,17 @@ export async function updateTask(
         data.status === "DONE" ? (existing.completedAt ?? new Date()) : null,
     },
   });
+
+  if (data.assignedToId !== existing.assignedTo.id) {
+    await notifyAssigned(user, data);
+  }
+  if (data.status === "DONE" && existing.status !== "DONE") {
+    await notifyCompleted(user, {
+      createdById: existing.createdBy?.id ?? null,
+      description: data.description,
+      caseId: data.caseId,
+    });
+  }
 
   revalidatePath("/tasks");
   if (existing.caseId) revalidatePath(`/cases/${existing.caseId}/tasks`);
@@ -158,6 +215,14 @@ export async function setTaskStatus(
           : null,
     },
   });
+
+  if (parsed.data.status === "DONE" && existing.status !== "DONE") {
+    await notifyCompleted(user, {
+      createdById: existing.createdBy?.id ?? null,
+      description: existing.description,
+      caseId: existing.caseId,
+    });
+  }
 
   revalidatePath("/tasks");
   if (existing.caseId) revalidatePath(`/cases/${existing.caseId}/tasks`);

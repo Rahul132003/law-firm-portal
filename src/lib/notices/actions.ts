@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { canPostNotices } from "@/lib/auth/roles";
 import { requireCapability, requireUser } from "@/lib/dal";
-import { deliver } from "@/lib/notifications/deliver";
+import { notify } from "@/lib/notifications/notify";
 import { prisma } from "@/lib/prisma";
 
 import { fieldErrors, noticeInputSchema } from "./validation";
@@ -47,21 +47,21 @@ export async function createNotice(
     select: { id: true, title: true },
   });
 
-  // Tell everyone active except the author, who already knows.
+  // Tell everyone active except the author, who already knows. One insert for
+  // the whole firm rather than a query per person.
   const recipients = await prisma.user.findMany({
-    where: { isActive: true, id: { not: user.id } },
+    where: { isActive: true },
     select: { id: true },
   });
 
-  for (const recipient of recipients) {
-    await deliver({
-      userId: recipient.id,
-      kind: "NOTICE_POSTED",
-      title: `Notice: ${notice.title}`,
-      body: `${user.name} posted a firm notice. Open the notice board to acknowledge it.`,
-      linkUrl: "/notices",
-    });
-  }
+  await notify({
+    kind: "NOTICE_POSTED",
+    recipientIds: recipients.map((r) => r.id),
+    actorId: user.id,
+    title: `Notice: ${notice.title}`,
+    body: `${user.name} posted a firm notice. Open the notice board to acknowledge it.`,
+    linkUrl: "/notices",
+  });
 
   revalidatePath("/notices");
   revalidatePath("/", "layout");

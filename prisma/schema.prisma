@@ -123,6 +123,18 @@ enum NotificationKind {
   HEARING_REMINDER
   TASK_DUE
   NOTICE_POSTED
+  /// Someone else assigned you a task.
+  TASK_ASSIGNED
+  /// A task you raised for someone else was marked done.
+  TASK_COMPLETED
+  /// You were added to a case team.
+  CASE_ASSIGNED
+  /// A hearing on one of your cases was added or its date changed.
+  HEARING_SCHEDULED
+  /// A document or new version was uploaded to one of your cases.
+  DOCUMENT_UPLOADED
+  /// Partners only: a case was saved despite a possible conflict of interest.
+  CONFLICT_WAIVED
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +149,9 @@ model User {
   role         Role     @default(ASSOCIATE)
   /// Deactivated users keep their audit trail but cannot authenticate.
   isActive     Boolean  @default(true)
+  /// Notification kinds this person has turned off. Critical kinds are never
+  /// honoured here — see MANDATORY_KINDS in src/lib/notifications/kinds.ts.
+  mutedNotificationKinds NotificationKind[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

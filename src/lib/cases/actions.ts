@@ -20,6 +20,7 @@ import { normalisePartyName } from "@/lib/conflicts/match";
 import { decideWaiver, readWaiver, type WaiverDecision } from "@/lib/conflicts/waiver";
 import { encryptField } from "@/lib/crypto";
 import { requireCapability, requireCaseAccess, requireUser } from "@/lib/dal";
+import { notify } from "@/lib/notifications/notify";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -83,6 +84,41 @@ function conflictRecord(
     outcome: waiver.outcome,
     waiverReason: waiver.waiverReason,
   };
+}
+
+async function notifyAddedToCase(
+  actor: { id: string; name: string },
+  matter: { id: string; caseNumber: string; title: string },
+  addedUserIds: string[],
+) {
+  await notify({
+    kind: "CASE_ASSIGNED",
+    recipientIds: addedUserIds,
+    actorId: actor.id,
+    title: `Added to ${matter.caseNumber}`,
+    body: `${actor.name} added you to the team on "${matter.title}".`,
+    linkUrl: `/cases/${matter.id}`,
+  });
+}
+
+/** Partners hear about every waiver, so none is recorded unseen. */
+async function notifyPartnersOfWaiver(
+  actor: { id: string; name: string },
+  matter: { id: string; caseNumber: string; title: string },
+  adverseCount: number,
+) {
+  const partners = await prisma.user.findMany({
+    where: { role: "ADMIN_PARTNER", isActive: true },
+    select: { id: true },
+  });
+  await notify({
+    kind: "CONFLICT_WAIVED",
+    recipientIds: partners.map((p) => p.id),
+    actorId: actor.id,
+    title: `Conflict waived on ${matter.caseNumber}`,
+    body: `${actor.name} proceeded with "${matter.title}" despite ${adverseCount} possible conflict${adverseCount === 1 ? "" : "s"}. Review the recorded reason.`,
+    linkUrl: `/cases/${matter.id}`,
+  });
 }
 
 function readCaseForm(formData: FormData) {
@@ -177,6 +213,12 @@ export async function createCase(
     return { message: "Could not create the case. Please try again." };
   }
 
+  const matter = { id: createdId, caseNumber: caseFields.caseNumber, title: caseFields.title };
+  await notifyAddedToCase(user, matter, finalAssignments.map((entry) => entry.userId));
+  if (waiver.outcome === "WAIVED") {
+    await notifyPartnersOfWaiver(user, matter, report.adverse.length);
+  }
+
   revalidatePath("/cases");
   redirect(`/cases/${createdId}`);
 }
@@ -198,7 +240,12 @@ export async function updateCase(
 
   const before = await prisma.case.findUnique({
     where: { id: caseId },
-    select: { clientName: true, opposingParty: true, clientId: true },
+    select: {
+      clientName: true,
+      opposingParty: true,
+      clientId: true,
+      assignments: { select: { userId: true } },
+    },
   });
   if (!before) return { message: "This case no longer exists." };
 
@@ -266,6 +313,17 @@ export async function updateCase(
     });
   } catch {
     return { message: "Could not save changes. Please try again." };
+  }
+
+  const matter = { id: caseId, caseNumber: caseFields.caseNumber, title: caseFields.title };
+  const previousTeam = new Set(before.assignments.map((a) => a.userId));
+  await notifyAddedToCase(
+    user,
+    matter,
+    assignments.map((entry) => entry.userId).filter((id) => !previousTeam.has(id)),
+  );
+  if (report && waiver?.ok && waiver.outcome === "WAIVED") {
+    await notifyPartnersOfWaiver(user, matter, report.adverse.length);
   }
 
   revalidatePath("/cases");

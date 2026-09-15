@@ -98,6 +98,44 @@ export async function deliver(
   return delivered;
 }
 
+/**
+ * Records many in-app notifications in one query, for fan-out events such as a
+ * firm-wide notice. Returns how many rows were written; on failure nothing is
+ * written and the error propagates, so callers can tell.
+ */
+export async function deliverBatch(
+  notifications: OutboundNotification[],
+): Promise<number> {
+  if (notifications.length === 0) return 0;
+
+  const { count } = await prisma.notification.createMany({
+    data: notifications.map((n) => ({
+      userId: n.userId,
+      kind: n.kind,
+      title: n.title,
+      body: n.body,
+      linkUrl: n.linkUrl ?? null,
+    })),
+  });
+
+  const outbound = auxiliaryChannels();
+  if (outbound.length > 0) {
+    await Promise.all(
+      notifications.flatMap((notification) =>
+        outbound.map(async (channel) => {
+          try {
+            await channel.send(notification);
+          } catch (error) {
+            console.error(`Notification channel "${channel.name}" failed`, error);
+          }
+        }),
+      ),
+    );
+  }
+
+  return count;
+}
+
 /** Returns how many of the batch were actually recorded. */
 export async function deliverMany(
   notifications: OutboundNotification[],

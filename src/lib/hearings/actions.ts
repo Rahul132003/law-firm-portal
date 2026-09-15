@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { canManageHearings } from "@/lib/auth/roles";
 import { encryptField } from "@/lib/crypto";
 import { requireCapability, requireCaseAccess, requireUser } from "@/lib/dal";
+import { notify } from "@/lib/notifications/notify";
 import { prisma } from "@/lib/prisma";
 import { fieldErrors, hearingInputSchema } from "./validation";
 import { listHearingsOnDate } from "./queries";
@@ -12,6 +13,40 @@ export type HearingFormState = {
   message?: string;
   ok?: boolean;
 };
+
+const hearingDateFormat = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
+async function notifyHearingScheduled(
+  actor: { id: string; name: string },
+  caseId: string,
+  hearing: { date: Date; court: string; purpose: string },
+  previousDate: Date | null,
+) {
+  const matter = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: { caseNumber: true, assignments: { select: { userId: true } } },
+  });
+  if (!matter) return;
+
+  const when = hearingDateFormat.format(hearing.date);
+  await notify({
+    kind: "HEARING_SCHEDULED",
+    recipientIds: matter.assignments.map((a) => a.userId),
+    actorId: actor.id,
+    title: previousDate
+      ? `Hearing moved: ${matter.caseNumber}`
+      : `Hearing listed: ${matter.caseNumber}`,
+    body: previousDate
+      ? `${actor.name} moved the ${hearing.purpose} hearing from ${hearingDateFormat.format(previousDate)} to ${when} at ${hearing.court}.`
+      : `${actor.name} listed a ${hearing.purpose} hearing on ${when} at ${hearing.court}.`,
+    linkUrl: `/cases/${caseId}/hearings`,
+  });
+}
 
 function readForm(formData: FormData) {
   const text = (key: string) => {
@@ -34,7 +69,7 @@ export async function createHearing(
   formData: FormData,
 ): Promise<HearingFormState> {
   await requireCapability(canManageHearings);
-  await requireCaseAccess(caseId);
+  const { user } = await requireCaseAccess(caseId);
 
   const parsed = hearingInputSchema.safeParse(readForm(formData));
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
@@ -50,6 +85,8 @@ export async function createHearing(
     },
   });
 
+  await notifyHearingScheduled(user, caseId, rest, null);
+
   revalidatePath(`/cases/${caseId}/hearings`);
   revalidatePath("/diary");
   return { ok: true };
@@ -64,11 +101,11 @@ export async function updateHearing(
 
   const existing = await prisma.hearing.findUnique({
     where: { id: hearingId },
-    select: { caseId: true },
+    select: { caseId: true, date: true },
   });
 
   if (!existing) return { message: "That hearing no longer exists." };
-  await requireCaseAccess(existing.caseId);
+  const { user } = await requireCaseAccess(existing.caseId);
 
   const parsed = hearingInputSchema.safeParse(readForm(formData));
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
@@ -79,6 +116,11 @@ export async function updateHearing(
     where: { id: hearingId },
     data: { ...rest, notes: notes ? encryptField(notes) : null },
   });
+
+  // Editing purpose or notes is not news; a date change is.
+  if (rest.date.getTime() !== existing.date.getTime()) {
+    await notifyHearingScheduled(user, existing.caseId, rest, existing.date);
+  }
 
   revalidatePath(`/cases/${existing.caseId}/hearings`);
   revalidatePath("/diary");

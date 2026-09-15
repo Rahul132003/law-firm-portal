@@ -12,6 +12,7 @@ import {
 } from "@/lib/documents/constants";
 import { recordDocumentAudit } from "@/lib/documents/queries";
 import { getSessionUser, requireCaseAccess } from "@/lib/dal";
+import { caseTeamIds, notify } from "@/lib/notifications/notify";
 import { prisma } from "@/lib/prisma";
 import { getStorage } from "@/lib/storage";
 
@@ -184,6 +185,19 @@ export async function POST(
     documentTitle: created.title,
     action: "UPLOAD",
     ipAddress: request.headers.get("x-forwarded-for"),
+  });
+
+  const matter = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: { caseNumber: true },
+  });
+  await notify({
+    kind: "DOCUMENT_UPLOADED",
+    recipientIds: await caseTeamIds(caseId),
+    actorId: user.id,
+    title: `${created.version > 1 ? `New version (v${created.version})` : "New document"}: ${created.title}`,
+    body: `${user.name} uploaded to ${matter?.caseNumber ?? "a case"}.`,
+    linkUrl: `/cases/${caseId}/documents`,
   });
 
   return NextResponse.json({
