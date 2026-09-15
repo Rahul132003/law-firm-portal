@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 
 import { UserManager, type ManagedUser } from "@/components/admin/user-manager";
 import { canManageUsers } from "@/lib/auth/roles";
+import { emailKey } from "@/lib/auth/throttle";
 import { requireCapability } from "@/lib/dal";
 import { FIRM_NAME } from "@/lib/firm";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,17 @@ export default async function SettingsTeamPage(
     orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }],
   });
 
+  const locks = await prisma.loginThrottle.findMany({
+    where: {
+      key: { in: rows.map((row) => emailKey(row.email)) },
+      lockedUntil: { gt: new Date() },
+    },
+    select: { key: true, lockedUntil: true },
+  });
+  const lockedUntilByKey = new Map(
+    locks.map((lock) => [lock.key, lock.lockedUntil!.toISOString()]),
+  );
+
   const users: ManagedUser[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -51,6 +63,7 @@ export default async function SettingsTeamPage(
     supervisorName: row.supervisor?.name ?? null,
     caseCount: row._count.assignments,
     openTaskCount: row._count.assignedTasks,
+    lockedUntil: lockedUntilByKey.get(emailKey(row.email)) ?? null,
   }));
 
   const activeCount = users.filter((person) => person.isActive).length;

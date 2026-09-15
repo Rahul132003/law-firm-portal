@@ -36,6 +36,12 @@ export async function login(
       // Deliberately identical wording for unknown-email, wrong-password and
       // deactivated-account, so the form cannot be used to enumerate staff.
       if (error.type === "CredentialsSignin") {
+        if ((error as { code?: string }).code === "locked") {
+          return {
+            error:
+              "Too many failed sign-in attempts. Please wait a while and try again, or ask a partner to unlock your account.",
+          };
+        }
         return { error: "Invalid email or password." };
       }
       return { error: "Unable to sign in. Please try again." };

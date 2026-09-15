@@ -4,6 +4,7 @@ import { hash } from "bcryptjs";
 import { revalidatePath } from "next/cache";
 
 import { canManageUsers } from "@/lib/auth/roles";
+import { clearLoginThrottle } from "@/lib/auth/throttle";
 import { requireCapability } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 
@@ -156,13 +157,37 @@ export async function resetUserPassword(
 
   if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { passwordHash: await hash(parsed.data.password, BCRYPT_ROUNDS) },
+    select: { email: true },
   });
+  // A partner issuing a new password is the usual way out of a lockout.
+  await clearLoginThrottle(updated.email);
 
   revalidatePath("/settings/team");
   return { ok: true, message: "Password updated." };
+}
+
+/**
+ * Lifts a sign-in lockout and resets the failure counter, for a person who
+ * locked themselves out. Only clears the account's email key; a blocked IP
+ * address expires on its own.
+ */
+export async function unlockUserSignIn(
+  userId: string,
+): Promise<{ ok: boolean; message?: string }> {
+  await requireCapability(canManageUsers);
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!target) return { ok: false, message: "That user no longer exists." };
+
+  await clearLoginThrottle(target.email);
+  revalidatePath("/settings/team");
+  return { ok: true };
 }
 
 /**

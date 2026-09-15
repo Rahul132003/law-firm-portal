@@ -146,6 +146,24 @@ model User {
   @@index([supervisorId])
 }
 
+/// Failed sign-in counters, keyed "email:<address>" or "ip:<address>".
+///
+/// Kept in Postgres rather than memory because serverless instances do not
+/// share state. Keyed by the submitted email string, not a User id, so an
+/// unknown address locks exactly like a real one and cannot be used to
+/// enumerate staff. See src/lib/auth/throttle.ts.
+model LoginThrottle {
+  key         String    @id
+  failures    Int       @default(0)
+  windowStart DateTime  @default(now())
+  /// How many times this key has been locked; drives the escalating lockout.
+  lockCount   Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([updatedAt])
+}
+
 // ---------------------------------------------------------------------------
 // Cases
 // ---------------------------------------------------------------------------

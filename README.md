@@ -146,6 +146,14 @@ Other measures:
 - **No user enumeration.** Bad email, wrong password and deactivated account
   all return the same message, and `authorize()` runs a bcrypt comparison even
   when the user does not exist so timing does not leak.
+- **Sign-in throttling.** 5 failures on one email within 15 minutes locks
+  it for 15 minutes, doubling on each repeat up to 24 hours; 50 failures
+  from one IP blocks that address. Counters live in Postgres
+  (`LoginThrottle`, so they hold across serverless instances), are checked
+  inside `authorize()` so direct POSTs to the NextAuth endpoint are covered,
+  and unknown emails lock identically so the lockout cannot enumerate staff.
+  Partners can lift a lock from Settings → Team; resetting a password also
+  clears it. The daily task-deadline cron prunes stale rows.
 - **Not indexable.** The root layout sets `robots: noindex, nofollow`.
 - **The reminder cron is secret-gated.** `/api/cron/hearing-reminders` has no
   session; it compares `CRON_SECRET` in constant time and refuses to run at

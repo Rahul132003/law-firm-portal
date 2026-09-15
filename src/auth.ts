@@ -1,8 +1,21 @@
 import { compare } from "bcryptjs";
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/auth.config";
+import {
+  activeLockUntil,
+  clearLoginThrottle,
+  clientIp,
+  emailKey,
+  ipKey,
+  recordLoginFailure,
+} from "@/lib/auth/throttle";
 import { prisma } from "@/lib/prisma";
+
+/** Surfaced to the login form as `error.code === "locked"`. */
+export class LockedOutError extends CredentialsSignin {
+  code = "locked";
+}
 
 /**
  * Email/password authentication for firm staff.
@@ -18,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = credentials?.email;
         const password = credentials?.password;
 
@@ -26,8 +39,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        const normalisedEmail = email.toLowerCase().trim();
+        const ip = clientIp(request.headers);
+
+        // Checked before bcrypt, so a locked key costs the attacker a cheap
+        // query rather than costing the server a hash. The lock applies to
+        // unknown addresses too, so it reveals nothing about who has an account.
+        const keys = [emailKey(normalisedEmail), ...(ip ? [ipKey(ip)] : [])];
+        if (await activeLockUntil(keys)) {
+          throw new LockedOutError();
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase().trim() },
+          where: { email: normalisedEmail },
           select: {
             id: true,
             name: true,
@@ -47,8 +71,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const passwordMatches = await compare(password, hash);
 
         if (!user || !passwordMatches || !user.isActive) {
+          await recordLoginFailure(normalisedEmail, ip);
           return null;
         }
+
+        await clearLoginThrottle(normalisedEmail);
 
         return {
           id: user.id,
