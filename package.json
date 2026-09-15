@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
@@ -19,9 +19,7 @@
     "postinstall": "prisma generate",
     "user:password": "tsx scripts/set-password.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "admin:create": "tsx scripts/create-admin.ts",
-    "crypto:rotate": "tsx scripts/rotate-encryption-key.ts",
-    "clients:backfill": "tsx scripts/backfill-clients.ts"
+    "admin:create": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -40,7 +38,6 @@
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
     "server-only": "^0.0.1",
-    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -50,7 +47,6 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "prettier": "^3.9.6",

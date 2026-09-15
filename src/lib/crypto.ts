@@ -1,14 +1,12 @@
 import "server-only";
 
-import { timingSafeEqual } from "node:crypto";
-import { env } from "./env";
 import {
-  parseKey,
-  parseKeyList,
-  seal,
-  unseal,
-  type FieldKey,
-} from "./field-cipher";
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
+import { env } from "./env";
 
 /**
  * Application-level encryption for the highest-risk free-text columns:
@@ -23,36 +21,72 @@ import {
  * SQL. Document *metadata* search (module 3) deliberately operates on
  * titles and filenames, which stay in plaintext.
  *
- * Key rotation: new writes always use FIELD_ENCRYPTION_KEY. Keys listed in
- * FIELD_ENCRYPTION_KEY_PREVIOUS (comma-separated) are used for reading only,
- * until `npm run crypto:rotate -- --apply` has re-sealed every row. The
- * envelope format lives in ./field-cipher.ts.
+ * Format: v1.<iv-b64>.<authTag-b64>.<ciphertext-b64>
+ * The version prefix leaves room to rotate keys or algorithms later.
  */
 
-let cachedKeys: { current: FieldKey; all: FieldKey[] } | null = null;
+const ALGORITHM = "aes-256-gcm";
+const VERSION = "v1";
+const IV_LENGTH = 12; // 96-bit nonce, the GCM standard
+const KEY_LENGTH = 32; // AES-256
 
-function getKeys() {
-  if (cachedKeys) return cachedKeys;
+let cachedKey: Buffer | null = null;
 
-  const current = parseKey(env.fieldEncryptionKey);
-  const previous = parseKeyList(process.env.FIELD_ENCRYPTION_KEY_PREVIOUS);
+function getKey(): Buffer {
+  if (cachedKey) return cachedKey;
 
-  cachedKeys = { current, all: [current, ...previous] };
-  return cachedKeys;
+  const key = Buffer.from(env.fieldEncryptionKey, "base64");
+  if (key.length !== KEY_LENGTH) {
+    throw new Error(
+      `FIELD_ENCRYPTION_KEY must decode to ${KEY_LENGTH} bytes, got ${key.length}. ` +
+        "Generate one with: openssl rand -base64 32",
+    );
+  }
+
+  cachedKey = key;
+  return key;
 }
 
-/** Seals plaintext for storage under the current key. */
+/** Seals plaintext for storage. Returns the versioned envelope string. */
 export function encryptField(plaintext: string): string {
-  return seal(plaintext, getKeys().current);
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, getKey(), iv);
+
+  const ciphertext = Buffer.concat([
+    cipher.update(plaintext, "utf8"),
+    cipher.final(),
+  ]);
+
+  return [
+    VERSION,
+    iv.toString("base64"),
+    cipher.getAuthTag().toString("base64"),
+    ciphertext.toString("base64"),
+  ].join(".");
 }
 
 /**
- * Opens a sealed field with the current or any previous key. Throws if the
- * envelope is malformed or the auth tag fails — a tampered or truncated
- * ciphertext must never silently decode.
+ * Opens a sealed field. Throws if the envelope is malformed or the auth tag
+ * fails — a tampered or truncated ciphertext must never silently decode.
  */
 export function decryptField(envelope: string): string {
-  return unseal(envelope, getKeys().all);
+  const parts = envelope.split(".");
+  if (parts.length !== 4 || parts[0] !== VERSION) {
+    throw new Error("Malformed encrypted field envelope");
+  }
+
+  const [, ivB64, tagB64, dataB64] = parts;
+  const decipher = createDecipheriv(
+    ALGORITHM,
+    getKey(),
+    Buffer.from(ivB64!, "base64"),
+  );
+  decipher.setAuthTag(Buffer.from(tagB64!, "base64"));
+
+  return Buffer.concat([
+    decipher.update(Buffer.from(dataB64!, "base64")),
+    decipher.final(),
+  ]).toString("utf8");
 }
 
 /**

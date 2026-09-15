@@ -117,41 +117,12 @@ enum ReminderOffset {
   OVERDUE
 }
 
-/// What a block of recorded time was spent on.
-enum TimeActivity {
-  RESEARCH
-  DRAFTING
-  HEARING
-  CLIENT_MEETING
-  CORRESPONDENCE
-  REVIEW
-  TRAVEL
-  ADMIN
-  OTHER
-}
-
 /// What produced a notification. Kept general so task deadlines and notices
 /// reuse the same delivery mechanism rather than growing parallel ones.
 enum NotificationKind {
   HEARING_REMINDER
   TASK_DUE
   NOTICE_POSTED
-  /// Someone else assigned you a task.
-  TASK_ASSIGNED
-  /// A task you raised for someone else was marked done.
-  TASK_COMPLETED
-  /// You were added to a case team.
-  CASE_ASSIGNED
-  /// A hearing on one of your cases was added or its date changed.
-  HEARING_SCHEDULED
-  /// A document or new version was uploaded to one of your cases.
-  DOCUMENT_UPLOADED
-  /// Partners only: a case was saved despite a possible conflict of interest.
-  CONFLICT_WAIVED
-  /// A note was added to one of your cases (strategy notes never reach paralegals).
-  NOTE_ADDED
-  /// One of your cases moved to a different status.
-  CASE_STATUS_CHANGED
 }
 
 // ---------------------------------------------------------------------------
@@ -166,12 +137,6 @@ model User {
   role         Role     @default(ASSOCIATE)
   /// Deactivated users keep their audit trail but cannot authenticate.
   isActive     Boolean  @default(true)
-  /// Notification kinds this person has turned off. Critical kinds are never
-  /// honoured here — see isMandatoryKind in src/lib/notifications/kinds.ts.
-  mutedNotificationKinds NotificationKind[] @default([])
-  /// When true, device push notifications say only that something happened,
-  /// so case and client names never appear on a lock screen.
-  pushHideDetails        Boolean            @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -191,9 +156,6 @@ model User {
   auditLogs         AuditLog[]
   notifications     Notification[]
   conflictChecks    ConflictCheck[]
-  timeEntries       TimeEntry[]
-  runningTimer      RunningTimer?
-  pushSubscriptions PushSubscription[]
 
   @@index([role])
   @@index([supervisorId])
@@ -275,8 +237,6 @@ model Case {
   tasks          Task[]
   notes          CaseNote[]
   conflictChecks ConflictCheck[]
-  timeEntries    TimeEntry[]
-  runningTimers  RunningTimer[]
 
   @@index([clientId])
   @@index([status])
@@ -463,25 +423,6 @@ model Notification {
   @@index([userId, createdAt])
 }
 
-/// One browser or installed app that receives Web Push for a user. A device
-/// belongs to whoever subscribed last, so a shared computer follows sign-ins.
-model PushSubscription {
-  id         String   @id @default(cuid())
-  userId     String
-  /// Push service URL; unique per browser profile.
-  endpoint   String   @unique
-  p256dh     String
-  auth       String
-  /// Shown in settings so people can recognise their devices.
-  deviceName String?
-  createdAt  DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
 // ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
@@ -521,48 +462,6 @@ model TaskAlert {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, offset])
-}
-
-// ---------------------------------------------------------------------------
-// Time tracking
-// ---------------------------------------------------------------------------
-
-/// A block of time someone spent. Rules live in src/lib/time-tracking/rules.ts.
-model TimeEntry {
-  id          String       @id @default(cuid())
-  userId      String
-  /// Null for firm work not tied to a matter (training, admin).
-  caseId      String?
-  /// The calendar day the work was done, with no time component.
-  workDate    DateTime     @db.Date
-  minutes     Int
-  activity    TimeActivity @default(OTHER)
-  description String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// SetNull: deleting a case must not silently erase the hours worked on it.
-  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
-
-  @@index([userId, workDate])
-  @@index([caseId, workDate])
-  @@index([workDate])
-}
-
-/// At most one per person. Stored server-side so a timer survives closing the
-/// browser or switching devices.
-model RunningTimer {
-  userId      String       @id
-  caseId      String?
-  activity    TimeActivity @default(OTHER)
-  description String       @default("")
-  startedAt   DateTime     @default(now())
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
-
-  @@index([caseId])
 }
 
 // ---------------------------------------------------------------------------

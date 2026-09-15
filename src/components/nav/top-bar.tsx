@@ -5,7 +5,6 @@ import { CalendarDays, PanelLeft } from "lucide-react";
 import { AccountMenu } from "@/components/nav/account-menu";
 import type { NotificationItem } from "@/components/nav/notification-bell";
 import { NotificationBell } from "@/components/nav/notification-bell";
-import { TimerChip } from "@/components/time/timer-chip";
 
 /**
  * Desktop-only top bar. Everything on it is one click deeper than the rail —
@@ -19,7 +18,6 @@ export function TopBar({
   unreadCount,
   nowMs,
   user,
-  runningTimer,
 }: {
   onToggleRail: () => void;
   dateLabel: string;
@@ -27,7 +25,6 @@ export function TopBar({
   unreadCount: number;
   nowMs: number;
   user: { name: string; roleLabel: string; initials: string };
-  runningTimer: { startedAtMs: number; label: string } | null;
 }) {
   return (
     <header className="sticky top-0 z-20 hidden h-16 shrink-0 items-center justify-between gap-3 border-b border-hairline bg-raised px-6 md:flex">
@@ -42,9 +39,6 @@ export function TopBar({
       </button>
 
       <div className="flex items-center gap-3">
-        {runningTimer ? (
-          <TimerChip startedAtMs={runningTimer.startedAtMs} label={runningTimer.label} nowMs={nowMs} />
-        ) : null}
         <span className="hidden items-center gap-2 rounded-full border border-hairline bg-sunken px-3 py-1.5 text-xs font-medium text-secondary lg:flex">
           <CalendarDays
             className="size-3.5 text-accent-700"

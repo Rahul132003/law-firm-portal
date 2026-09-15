@@ -26,12 +26,8 @@ export const config = {
    * Run on everything except Next internals, static assets, and the NextAuth
    * endpoints themselves. Application API routes are excluded here and guard
    * themselves through the data access layer instead.
-   *
-   * The service worker, web app manifest and app icons are public by nature:
-   * browsers fetch them without a session (e.g. when checking for a worker
-   * update), and a redirect to /login would break push registration.
    */
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|icons/|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?)$).*)",
   ],
 };

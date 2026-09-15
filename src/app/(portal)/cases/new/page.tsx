@@ -4,7 +4,6 @@ import { CaseForm } from "@/components/cases/case-form";
 import { canCreateCases } from "@/lib/auth/roles";
 import { createCase } from "@/lib/cases/actions";
 import { getAssignableStaff } from "@/lib/cases/queries";
-import { getClientSuggestions } from "@/lib/clients/queries";
 import { requireCapability } from "@/lib/dal";
 import { FIRM_NAME } from "@/lib/firm";
 
@@ -15,10 +14,7 @@ export const metadata: Metadata = {
 export default async function NewCasePage() {
   // Throws 403 for associates and paralegals.
   const user = await requireCapability(canCreateCases);
-  const [staff, clientSuggestions] = await Promise.all([
-    getAssignableStaff(),
-    getClientSuggestions(user),
-  ]);
+  const staff = await getAssignableStaff();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -37,7 +33,6 @@ export default async function NewCasePage() {
       <CaseForm
         action={createCase}
         staff={staff}
-        clientSuggestions={clientSuggestions}
         submitLabel="Create case"
         cancelHref="/cases"
         defaults={{

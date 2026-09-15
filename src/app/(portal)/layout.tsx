@@ -2,8 +2,6 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { MobileNav } from "@/components/nav/mobile-nav";
-import { PushPrompt } from "@/components/notifications/push-prompt";
-import { PUSH_DEVICE_COOKIE } from "@/lib/push/subscription";
 import { PortalChrome } from "@/components/nav/portal-chrome";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { requireUser } from "@/lib/dal";
@@ -14,7 +12,6 @@ import {
   listNotifications,
 } from "@/lib/notifications/queries";
 import { serverNow, serverNowMs } from "@/lib/time";
-import { getRunningTimer } from "@/lib/time-tracking/queries";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
@@ -40,11 +37,10 @@ export default async function PortalLayout({ children }: LayoutProps<"/">) {
   const items = navItemsForRole(user.role);
   const now = serverNow();
 
-  const [notifications, unreadCount, cookieStore, timer] = await Promise.all([
+  const [notifications, unreadCount, cookieStore] = await Promise.all([
     listNotifications(20),
     countUnreadNotifications(),
     cookies(),
-    getRunningTimer(user.id),
   ]);
 
   // Read on the server so the rail renders at its correct width on first
@@ -72,14 +68,6 @@ export default async function PortalLayout({ children }: LayoutProps<"/">) {
       nowMs={serverNowMs()}
       dateLabel={dateFmt.format(now)}
       initialCollapsed={collapsed}
-      runningTimer={
-        timer
-          ? {
-              startedAtMs: timer.startedAt.getTime(),
-              label: timer.case ? timer.case.caseNumber : "Firm work",
-            }
-          : null
-      }
     >
       {/* Mobile only — the rail and top bar are hidden below md. */}
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-hairline bg-raised px-4 py-2.5 md:hidden">
@@ -97,8 +85,6 @@ export default async function PortalLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <MobileNav items={items} unreadCount={unreadCount} />
-
-      <PushPrompt registeredOnServer={Boolean(cookieStore.get(PUSH_DEVICE_COOKIE)?.value)} />
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-8 md:py-8">
         {children}

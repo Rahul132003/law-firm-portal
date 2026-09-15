@@ -1,18 +1,9 @@
 "use client";
 import Link from "next/link";
-import {
-  startTransition,
-  useActionState,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useActionState, useState } from "react";
 import type { CaseRole } from "@/generated/prisma/enums";
-import { ConflictPanel } from "@/components/cases/conflict-panel";
 import { buttonClass } from "@/components/ui/button";
-import { previewConflicts, type CaseFormState } from "@/lib/cases/actions";
-import type { ConflictPreview } from "@/lib/conflicts/check";
-import { normalisePartyName } from "@/lib/conflicts/match";
+import type { CaseFormState } from "@/lib/cases/actions";
 import {
   CASE_ROLE_LABELS,
   CASE_ROLE_ORDER,
@@ -46,77 +37,21 @@ function FieldError({ message }: { message?: string }) {
   return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
-/** Waits this long after typing stops before running the live check. */
-const PREVIEW_DELAY_MS = 600;
-
 export function CaseForm({
   action,
   staff,
   defaults,
   submitLabel,
   cancelHref,
-  clientSuggestions,
-  caseId,
 }: {
   action: (state: CaseFormState, formData: FormData) => Promise<CaseFormState>;
   staff: StaffOption[];
   defaults: CaseFormDefaults;
   submitLabel: string;
   cancelHref: string;
-  /** Existing client names, offered as suggestions. */
-  clientSuggestions: string[];
-  /** Set when editing, so the case is not matched against itself. */
-  caseId?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, EMPTY);
   const [assignments, setAssignments] = useState(defaults.assignments);
-
-  const [clientName, setClientName] = useState(defaults.clientName);
-  const [opposingParty, setOpposingParty] = useState(defaults.opposingParty);
-  const [preview, setPreview] = useState<ConflictPreview | null>(null);
-  const [checking, setChecking] = useState(false);
-  const requestId = useRef(0);
-
-  // When editing, only a change of parties needs a fresh check.
-  const partiesUnchanged =
-    caseId !== undefined &&
-    normalisePartyName(clientName) === normalisePartyName(defaults.clientName) &&
-    normalisePartyName(opposingParty) === normalisePartyName(defaults.opposingParty);
-  const hasSomethingToCheck =
-    normalisePartyName(clientName).length >= 3 || normalisePartyName(opposingParty).length >= 3;
-  const shouldCheck = hasSomethingToCheck && !partiesUnchanged;
-
-  useEffect(() => {
-    if (!shouldCheck) return;
-
-    const id = ++requestId.current;
-    const timer = setTimeout(async () => {
-      setChecking(true);
-      try {
-        const result = await previewConflicts({
-          clientName,
-          opposingParty,
-          excludeCaseId: caseId,
-        });
-        // Ignore responses that arrive after the user has typed again.
-        if (id === requestId.current) setPreview(result);
-      } catch {
-        // The save re-runs the check authoritatively; a failed preview is not fatal.
-      } finally {
-        if (id === requestId.current) setChecking(false);
-      }
-    }, PREVIEW_DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [clientName, opposingParty, caseId, shouldCheck]);
-
-  // A held-back save carries the authoritative report; prefer it until the
-  // parties are edited again.
-  const [dismissedReport, setDismissedReport] = useState<ConflictPreview>();
-  const heldReport =
-    state.conflicts && state.conflicts !== dismissedReport ? state.conflicts : null;
-  const releaseHeldReport = () => setDismissedReport(state.conflicts);
-  const report = shouldCheck ? (heldReport ?? preview) : null;
 
   const errors = state.errors ?? {};
   const unassigned = staff.filter(
@@ -132,17 +67,7 @@ export function CaseForm({
   }
 
   return (
-    <form
-      // Submitted manually rather than via `action={…}`: React resets a form
-      // after an action prop completes, which would wipe everything the user
-      // typed whenever a save is held back for validation or conflict review.
-      onSubmit={(event) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        startTransition(() => formAction(formData));
-      }}
-      className="space-y-6"
-    >
+    <form action={formAction} className="space-y-6">
       {state.message ? (
         <p
           role="alert"
@@ -215,24 +140,10 @@ export function CaseForm({
             <input
               id="clientName"
               name="clientName"
-              value={clientName}
-              onChange={(event) => {
-                setClientName(event.target.value);
-                releaseHeldReport();
-              }}
+              defaultValue={defaults.clientName}
               required
-              list="client-suggestions"
-              autoComplete="off"
               className="field-input"
             />
-            <datalist id="client-suggestions">
-              {clientSuggestions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-            <p className="mt-1 text-xs text-muted">
-              Pick an existing client to link this matter to their record.
-            </p>
             <FieldError message={errors.clientName} />
           </div>
 
@@ -330,11 +241,7 @@ export function CaseForm({
             <input
               id="opposingParty"
               name="opposingParty"
-              value={opposingParty}
-              onChange={(event) => {
-                setOpposingParty(event.target.value);
-                releaseHeldReport();
-              }}
+              defaultValue={defaults.opposingParty}
               className="field-input"
             />
             <FieldError message={errors.opposingParty} />
@@ -355,12 +262,6 @@ export function CaseForm({
           </div>
         </div>
       </section>
-
-      <ConflictPanel
-        report={report}
-        checking={checking && !heldReport}
-        waiverError={errors.waiverReason}
-      />
 
       <section className="card p-6">
         {" "}

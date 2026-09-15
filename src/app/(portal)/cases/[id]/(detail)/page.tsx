@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CASE_ROLE_LABELS } from "@/lib/cases/labels";
 import { getCaseDetail } from "@/lib/cases/queries";
-import { getLatestConflictCheck } from "@/lib/clients/queries";
 
 function formatDate(value: Date | null): string {
   if (!value) return "—";
@@ -36,8 +34,6 @@ export default async function CaseOverviewPage(
   const { id } = await props.params;
   const record = await getCaseDetail(id);
   if (!record) notFound();
-  // getCaseDetail has already enforced case access.
-  const conflictCheck = await getLatestConflictCheck(id);
 
   return (
     <div className="grid gap-5 lg:grid-cols-3">
@@ -50,23 +46,7 @@ export default async function CaseOverviewPage(
         <dl className="grid gap-5 sm:grid-cols-2">
           {" "}
           <Detail label="Case number" value={record.caseNumber} />{" "}
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-              Client
-            </dt>
-            <dd className="mt-1 text-sm text-primary">
-              {record.clientId ? (
-                <Link
-                  href={`/clients/${record.clientId}`}
-                  className="underline-offset-2 hover:underline"
-                >
-                  {record.clientName}
-                </Link>
-              ) : (
-                record.clientName
-              )}
-            </dd>
-          </div>{" "}
+          <Detail label="Client" value={record.clientName} />{" "}
           <Detail label="Court" value={record.court} />{" "}
           <Detail label="Jurisdiction" value={record.jurisdiction} />{" "}
           <Detail label="Judge" value={record.judge} />{" "}
@@ -74,41 +54,6 @@ export default async function CaseOverviewPage(
           <Detail label="Opposing party" value={record.opposingParty} />{" "}
           <Detail label="Opposing counsel" value={record.opposingCounsel} />
         </dl>
-        <div className="mt-6 border-t border-hairline pt-5">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
-            Conflict of interest check
-          </h3>
-          {!conflictCheck ? (
-            <p className="mt-1 text-sm text-secondary">
-              No check on record — this matter predates conflict checking. Editing its
-              parties will run one.
-            </p>
-          ) : conflictCheck.outcome === "CLEAR" ? (
-            <p className="mt-1 text-sm text-primary">
-              <span className="font-medium text-success">Cleared</span> by{" "}
-              {conflictCheck.performedBy.name} on {formatDate(conflictCheck.createdAt)}
-              {conflictCheck.relatedMatches > 0
-                ? ` · ${conflictCheck.relatedMatches} related matter${conflictCheck.relatedMatches === 1 ? "" : "s"}`
-                : ""}
-            </p>
-          ) : (
-            <div className="mt-1 text-sm text-primary">
-              <p>
-                <span className="font-medium text-danger">
-                  Proceeded despite {conflictCheck.adverseMatches} possible conflict
-                  {conflictCheck.adverseMatches === 1 ? "" : "s"}
-                </span>{" "}
-                — recorded by {conflictCheck.performedBy.name} on{" "}
-                {formatDate(conflictCheck.createdAt)}
-              </p>
-              {conflictCheck.waiverReason ? (
-                <blockquote className="mt-2 border-l-2 border-hairline pl-3 text-secondary">
-                  {conflictCheck.waiverReason}
-                </blockquote>
-              ) : null}
-            </div>
-          )}
-        </div>
       </section>
       <section className="card h-fit p-6">
         {" "}

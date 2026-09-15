@@ -1,8 +1,6 @@
 import "server-only";
-import { after } from "next/server";
 import type { NotificationKind } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
-import { sendPush } from "@/lib/push/send";
 
 /**
  * Notification delivery.
@@ -13,8 +11,6 @@ import { sendPush } from "@/lib/push/send";
  *   something. If it fails, the notification did not happen, and callers must
  *   be able to see that — a reminder sweep that reports success while writing
  *   nothing is worse than one that reports failure.
- * - **device push is best-effort** and runs after the response; see
- *   src/lib/push/send.ts.
  * - **outbound channels are best-effort.** A bounced email must not cost the
  *   in-app record or abort a batch, so those failures are logged and
  *   swallowed.
@@ -64,22 +60,6 @@ const emailChannel: NotificationChannel = {
   },
 };
 
-/**
- * Device push runs after the response is sent (`after`), so saving a hearing
- * does not wait on phones. Outside a request — scripts, tests — `after` is
- * unavailable and the push is awaited instead.
- */
-async function pushInBackground(notifications: OutboundNotification[]): Promise<void> {
-  if (notifications.length === 0) return;
-  const run = () =>
-    sendPush(notifications).catch((error) => console.error("Device push failed", error));
-  try {
-    after(run);
-  } catch {
-    await run();
-  }
-}
-
 function auxiliaryChannels(): NotificationChannel[] {
   // Enabling one is a matter of setting the env var once `send` is real.
   return process.env.NOTIFY_EMAIL_ENABLED === "true" ? [emailChannel] : [];
@@ -105,9 +85,6 @@ export async function deliver(
     );
   }
 
-  // Push only what was recorded, so a device never shows an alert the bell lacks.
-  if (delivered) await pushInBackground([notification]);
-
   await Promise.all(
     auxiliaryChannels().map(async (channel) => {
       try {
@@ -119,46 +96,6 @@ export async function deliver(
   );
 
   return delivered;
-}
-
-/**
- * Records many in-app notifications in one query, for fan-out events such as a
- * firm-wide notice. Returns how many rows were written; on failure nothing is
- * written and the error propagates, so callers can tell.
- */
-export async function deliverBatch(
-  notifications: OutboundNotification[],
-): Promise<number> {
-  if (notifications.length === 0) return 0;
-
-  const { count } = await prisma.notification.createMany({
-    data: notifications.map((n) => ({
-      userId: n.userId,
-      kind: n.kind,
-      title: n.title,
-      body: n.body,
-      linkUrl: n.linkUrl ?? null,
-    })),
-  });
-
-  await pushInBackground(notifications);
-
-  const outbound = auxiliaryChannels();
-  if (outbound.length > 0) {
-    await Promise.all(
-      notifications.flatMap((notification) =>
-        outbound.map(async (channel) => {
-          try {
-            await channel.send(notification);
-          } catch (error) {
-            console.error(`Notification channel "${channel.name}" failed`, error);
-          }
-        }),
-      ),
-    );
-  }
-
-  return count;
 }
 
 /** Returns how many of the batch were actually recorded. */

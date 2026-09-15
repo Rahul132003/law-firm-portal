@@ -165,7 +165,6 @@ export async function getCaseDetail(caseId: string) {
       judge: true,
       opposingParty: true,
       opposingCounsel: true,
-      clientId: true,
       createdAt: true,
     },
   });

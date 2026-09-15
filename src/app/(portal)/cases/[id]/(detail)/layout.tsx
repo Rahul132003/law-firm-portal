@@ -78,7 +78,6 @@ export default async function CaseDetailLayout({
           { segment: "hearings", label: "Hearings", count: counts.hearings },
           { segment: "tasks", label: "Tasks", count: counts.tasks },
           { segment: "notes", label: "Notes", count: counts.notes },
-          { segment: "time", label: "Time" },
         ]}
       />
       <div className="pt-6">{children}</div>

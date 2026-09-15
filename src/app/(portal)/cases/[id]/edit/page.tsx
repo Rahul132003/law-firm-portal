@@ -5,7 +5,6 @@ import { CaseForm } from "@/components/cases/case-form";
 import { canEditCase } from "@/lib/auth/roles";
 import { updateCase } from "@/lib/cases/actions";
 import { getAssignableStaff, getCaseForEdit } from "@/lib/cases/queries";
-import { getClientSuggestions } from "@/lib/clients/queries";
 import { requireCapability } from "@/lib/dal";
 import { FIRM_NAME } from "@/lib/firm";
 
@@ -25,12 +24,11 @@ export default async function EditCasePage(
 ) {
   const { id } = await props.params;
 
-  const user = await requireCapability(canEditCase);
-  const [record, staff, clientSuggestions] = await Promise.all([
+  await requireCapability(canEditCase);
+  const [record, staff] = await Promise.all([
     // Also performs the case-scope check.
     getCaseForEdit(id),
     getAssignableStaff(),
-    getClientSuggestions(user),
   ]);
 
   if (!record) notFound();
@@ -52,8 +50,6 @@ export default async function EditCasePage(
       <CaseForm
         action={updateCase.bind(null, id)}
         staff={staff}
-        clientSuggestions={clientSuggestions}
-        caseId={id}
         submitLabel="Save changes"
         cancelHref={`/cases/${id}`}
         defaults={{

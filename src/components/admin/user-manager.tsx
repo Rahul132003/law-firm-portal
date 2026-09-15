@@ -9,7 +9,6 @@ import {
   createUser,
   resetUserPassword,
   setUserActive,
-  unlockUserSignIn,
   updateUser,
   type AdminFormState,
 } from "@/lib/admin/actions";
@@ -26,16 +25,7 @@ export type ManagedUser = {
   supervisorName: string | null;
   caseCount: number;
   openTaskCount: number;
-  /** ISO timestamp while sign-in is locked after repeated failures. */
-  lockedUntil: string | null;
 };
-
-const lockTimeFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -460,16 +450,6 @@ export function UserManager({
                         Deactivated
                       </span>
                     ) : null}
-                    {person.lockedUntil ? (
-                      <span
-                        // Server and browser time zones can differ.
-                        suppressHydrationWarning
-                        className="rounded-md bg-danger-soft px-1.5 py-0.5 text-[11px] font-medium text-danger"
-                      >
-                        Sign-in locked until{" "}
-                        {lockTimeFormat.format(new Date(person.lockedUntil))}
-                      </span>
-                    ) : null}
                     {person.id === currentUserId ? (
                       <span className="text-[11px] text-muted">(you)</span>
                     ) : null}
@@ -491,26 +471,6 @@ export function UserManager({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {person.lockedUntil ? (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() =>
-                        startTransition(async () => {
-                          const result = await unlockUserSignIn(person.id);
-                          if (!result.ok) {
-                            setError(result.message ?? "Could not unlock.");
-                          } else {
-                            setError(null);
-                            router.refresh();
-                          }
-                        })
-                      }
-                      className="rounded-md border border-hairline px-2 py-1 text-xs text-secondary hover:bg-sunken hover:text-primary disabled:opacity-50"
-                    >
-                      Unlock sign-in
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => setEditing(person.id)}
